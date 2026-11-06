@@ -6,8 +6,7 @@
 import fs from 'node:fs';
 
 const W = process.env.WALLET || '649ot18fccD6Mc9V4aHWTdoSVCuqAEtg9aWuxBA9cRoU';
-const K = process.env.HK || process.env.HELIUS_API_KEY;
-if (!K) { console.error("Falta HELIUS_API_KEY (ponla en el archivo .env)"); process.exit(1); }
+const K = process.env.HK || process.env.HELIUS_API_KEY || ''; // opcional: solo como último recurso
 const START_SOL = Number(process.env.START_SOL ?? 0.09);
 const FRACTION = Number(process.env.FRACTION ?? 0.25);  // % del saldo por trade
 const LAT = Number(process.env.LAT ?? 800);             // ms entre detectar y aterrizar
@@ -15,7 +14,11 @@ const POLL = Number(process.env.POLL ?? 1500);
 const FEE = 0.0125, PRIO = 0.0002;
 const WSOL = 'So11111111111111111111111111111111111111112';
 const STATE = process.env.STATE || 'data/livecopy_649ot.json';
-const RPC = `https://mainnet.helius-rpc.com/?api-key=${K}`;
+// RPCs GRATUITOS sin créditos (PublicNode y el oficial de Solana); Helius solo como último recurso si hay clave.
+const RPCS = (process.env.RPC_URLS || 'https://solana-rpc.publicnode.com,https://api.mainnet-beta.solana.com').split(',').map(x => x.trim()).filter(Boolean);
+if (K && process.env.HELIUS_FALLBACK !== '0') RPCS.push(`https://mainnet.helius-rpc.com/?api-key=${K}`);
+const WS_URL = process.env.WS_URL || 'wss://api.mainnet-beta.solana.com';
+let rpcIdx = 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const st = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { startedAt: Date.now(), balance: START_SOL, open: {}, closed: [], seen: [], credits: 0 };
@@ -26,15 +29,19 @@ const emit = m => { try { if (process.send) process.send(m); } catch {} };
 const save = () => { st.seen = [...seen].slice(-3000); fs.writeFileSync(STATE, JSON.stringify(st, null, 1)); };
 const log = m => console.log(`[${new Date().toLocaleTimeString('es-ES')}] ${m}`);
 
+// Prueba el RPC actual; si falla o limita (429), pasa al siguiente de la lista. Solo cuenta créditos si usa Helius.
 async function rpc(method, params) {
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < RPCS.length * 2; i++) {
+    const url = RPCS[(rpcIdx + i) % RPCS.length];
     try {
-      const r = await fetch(RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(10000) });
-      st.credits++;
-      if (r.status === 429) { await sleep(1500); continue; }
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(8000) });
+      if (url.includes('helius')) st.credits++;
+      if (r.status === 429 || r.status >= 500) { await sleep(300); continue; }
       const j = await r.json();
-      return j.result;
-    } catch { await sleep(500); }
+      if (j.error && /rate|limit|busy/i.test(j.error.message || '')) { await sleep(300); continue; }
+      rpcIdx = (rpcIdx + i) % RPCS.length; // quedarse con el que funcionó
+      return j.result ?? null;
+    } catch { await sleep(200); }
   }
   return null;
 }
@@ -193,7 +200,7 @@ async function loop() {
     const sigs = await rpc('getSignaturesForAddress', [W, { limit: 25, commitment: 'confirmed' }]);
     const fresh = (sigs || []).filter(s => !s.err && !seen.has(s.signature)).reverse();
     for (const s of fresh) await processSig(s.signature, s.blockTime, 'sondeo');
-    await sleep(wsAlive ? 30000 : POLL);
+    await sleep(wsAlive ? 10000 : POLL); // con RPC públicos el respaldo no cuesta créditos
   }
 }
 
@@ -214,7 +221,7 @@ async function processSig(sig, blockTime, via) {
 // Suscripción en tiempo real: Solana avisa en cuanto una tx menciona a la wallet (sin esperar al sondeo)
 let wsAlive = false;
 function startWs() {
-  const ws = new WebSocket(RPC.replace('https://', 'wss://'));
+  const ws = new WebSocket(WS_URL);
   ws.onopen = () => { wsAlive = true; ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [W] }, { commitment: 'processed' }] })); log('WebSocket conectado: detección en tiempo real'); };
   ws.onmessage = m => {
     try {

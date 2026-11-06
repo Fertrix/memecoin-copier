@@ -33,7 +33,7 @@ if (fs.existsSync(ENVF)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   }
 }
-if (!process.env.HELIUS_API_KEY) { console.error('Falta HELIUS_API_KEY en el archivo .env'); process.exit(1); }
+if (!process.env.HELIUS_API_KEY) console.log('Sin HELIUS_API_KEY: se usan solo RPCs públicos gratuitos (PublicNode y el oficial de Solana).');
 
 const COPIERS = JSON.parse(fs.readFileSync(path.join(DIR, 'wallets.json'), 'utf8'));
 const BOOT = Date.now();
