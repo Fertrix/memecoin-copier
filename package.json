@@ -1,0 +1,15 @@
+{
+  "name": "memecoin-paper-copier",
+  "version": "1.0.0",
+  "description": "Copiador PAPER (sin dinero real) de ballenas de Solana. Solo lee la blockchain; nunca firma ni envía transacciones.",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "engines": {
+    "node": ">=22.4.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
