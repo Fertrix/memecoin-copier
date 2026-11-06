@@ -152,8 +152,8 @@ async function load() {
     const rule = (c.rule[1] < 1e6 ? `copia compras de ${c.rule[0]}–${c.rule[1]} SOL` : 'copia todas sus compras') + (c.maxRise != null && c.maxRise < 1 ? ` · solo si el precio subió ≤ ${Math.round(c.maxRise * 100)} % (llegar antes que los bots)` : '') + (c.trail ? ` · trailing ${Math.round(c.trail*100)} % tras +${Math.round(c.trailArm*100)} %` : '') + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>');
     let verdict = '<span class="pill neutral">pocos datos</span>';
     if (n >= 8 && c.expected != null) verdict = m >= c.expected * 0.5 ? '<span class="pill ok">aguanta el histórico</span>' : m > 0 ? '<span class="pill neutral">por debajo del histórico</span>' : '<span class="pill bad">perdiendo en vivo</span>';
-    const rows = [...c.open.map(o => `<tr><td>${o.mint.slice(0, 6)}</td><td class="sub">abierta</td><td>${o.whaleSol?.toFixed(2) ?? '–'}</td><td>${ago(o.openedAt)}</td></tr>`),
-      ...c.closed.slice(-8).reverse().map(x => `<tr><td>${x.mint.slice(0, 6)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td>${x.whaleSol?.toFixed(2) ?? '–'}</td><td>${ago(x.at)}</td></tr>`)].join('');
+    const rows = [...c.open.map(o => `<tr><td>${o.mint.slice(0, 6)}</td><td class="sub">abierta</td><td>${o.whaleSol?.toFixed(2) ?? '–'}</td><td></td><td></td><td></td><td>${ago(o.openedAt)}</td></tr>`),
+      ...c.closed.slice(-8).reverse().map(x => `<tr><td>${x.mint.slice(0, 6)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td>${x.whaleSol?.toFixed(2) ?? '–'}</td><td>${x.rise == null ? '–' : pct(x.rise)}</td><td>${x.peak ? 'x' + x.peak.toFixed(2) : '–'}</td><td>${x.reason || 'espejo'}</td><td>${ago(x.at)}</td></tr>`)].join('');
     return `<div class="card"><h2><span>${c.label}</span>${verdict}</h2>
       <div class="sub">${c.wallet}</div><div class="sub">${rule}</div>
       <div class="row"><span>Trades <b>${n}</b></span><span>Ganadores <b>${n ? Math.round(w / n * 100) : 0} %</b></span>
@@ -161,7 +161,7 @@ async function load() {
         <span>Histórico <b>${c.expected == null ? '–' : pct(c.expected)}</b></span>
         <span>Retraso <b>${lg.length ? (lg.reduce((a, b) => a + b, 0) / lg.length / 1000).toFixed(1) + ' s' : '–'}</b></span></div>
       ${spark(c)}
-      <div class="tbl"><table><thead><tr><th>Token</th><th>Resultado</th><th>Ballena (SOL)</th><th>Hace</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="sub">Esperando a que la ballena opere…</td></tr>'}</tbody></table></div></div>`;
+      <div class="tbl"><table><thead><tr><th>Token</th><th>Resultado</th><th>Ballena (SOL)</th><th>Subida al entrar</th><th>Máx.</th><th>Salida</th><th>Hace</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="sub">Esperando a que la ballena opere…</td></tr>'}</tbody></table></div></div>`;
   }).join('');
   // Últimos trades
   document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${o.name}</td><td>${o.mint.slice(0, 6)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),

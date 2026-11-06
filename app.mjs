@@ -12,11 +12,16 @@ fs.mkdirSync(path.join(ROOT, 'data'), { recursive: true });
 
 // ---------- Registro en memoria (para /api/logs) ----------
 const LOG = [], ERR = [];
+// Registro persistente en disco: sobrevive a reinicios/actualizaciones (data/logs.txt, rota a ~2 MB)
+const LOGF = path.join(ROOT, 'data', 'logs.txt');
+const NL = String.fromCharCode(10);
+try { for (const l of fs.readFileSync(LOGF, 'utf8').split(NL).filter(Boolean).slice(-800)) LOG.push(l); LOG.push(`${new Date().toISOString().replace('T', ' ').slice(0, 19)} ===== reinicio (versión ${process.env.APP_VERSION || 'local'}) =====`); } catch {}
+const persist = line => { try { fs.appendFileSync(LOGF, line + NL); if (fs.statSync(LOGF).size > 2e6) { const kept = fs.readFileSync(LOGF, 'utf8').split(NL).slice(-4000).join(NL); fs.writeFileSync(LOGF, kept); } } catch {} };
 const keep = (arr, line, max) => { arr.push(line); if (arr.length > max) arr.splice(0, arr.length - max); };
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 const _log = console.log.bind(console), _err = console.error.bind(console);
-console.log = (...a) => { const l = a.join(' '); keep(LOG, `${stamp()} ${l}`, 800); _log(...a); };
-console.error = (...a) => { const l = a.map(x => x?.stack || String(x)).join(' '); keep(ERR, `${stamp()} ${l}`, 300); keep(LOG, `${stamp()} ERROR ${l}`, 800); _err(...a); };
+console.log = (...a) => { const l = `${stamp()} ${a.join(' ')}`; keep(LOG, l, 800); persist(l); _log(...a); };
+console.error = (...a) => { const l = a.map(x => x?.stack || String(x)).join(' '); keep(ERR, `${stamp()} ${l}`, 300); keep(LOG, `${stamp()} ERROR ${l}`, 800); persist(`${stamp()} ERROR ${l}`); _err(...a); };
 process.on('uncaughtException', e => console.error('uncaughtException', e));
 process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
@@ -108,7 +113,7 @@ function status() {
     return {
       name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
       equity: s.balance + open.reduce((a, o) => a + o.size, 0),
-      closed: s.closed.map(x => ({ mint: x.mint, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol })),
+      closed: s.closed.map(x => ({ mint: x.mint, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol, reason: x.reason, rise: x.rise, peak: x.peak, route: x.route })),
       open
     };
   });

@@ -112,6 +112,7 @@ async function onBuy(ev, sig, txTime) {
     const rise = (now.solR / ev.refVSol) ** 2 - 1; // poolPrice('curva') devuelve solR = SOL virtual actual
     if (rise > MAX_RISE) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: el precio ya subió ${(rise * 100).toFixed(1)}% desde su compra (los bots llegaron antes; máx ${(MAX_RISE * 100).toFixed(0)}%)`); return; }
     log(`compra ${ev.mint.slice(0, 6)} PASA el filtro: subida desde su compra ${(rise * 100).toFixed(1)}% (máx ${(MAX_RISE * 100).toFixed(0)}%)`);
+    ev.rise = rise;
   }
   await sleep(LAT);
   const size = Math.min(st.balance * FRACTION, st.balance - 0.003);
@@ -121,7 +122,7 @@ async function onBuy(ev, sig, txTime) {
   if (!q) return onBuyPool(ev, sig, txTime); // sin ruta en Jupiter: método de lectura directa del pool
   st.balance -= size;
   const pIn = ev.pool.kind === 'curva' ? await poolPrice(ev.pool) : null;
-  st.open[ev.mint] = { size, tokensRaw: q.out.toString(), route: q.route, pool: ev.pool, whaleSig: sig, whaleSol: ev.sol, openedAt: Date.now(), lagMs: Date.now() - txTime * 1000, vSolEntry: pIn?.solR ?? null, peak: 1 };
+  st.open[ev.mint] = { size, tokensRaw: q.out.toString(), route: q.route, pool: ev.pool, whaleSig: sig, whaleSol: ev.sol, openedAt: Date.now(), lagMs: Date.now() - txTime * 1000, vSolEntry: pIn?.solR ?? null, peak: 1, rise: ev.rise ?? null };
   emit({ type: 'buy', mint: ev.mint, whaleSol: ev.sol, kind: ev.pool.kind, route: q.route, lagMs: st.open[ev.mint].lagMs });
   log(`COMPRA copiada ${ev.mint.slice(0, 6)} vía ${q.route} | ballena ${ev.sol.toFixed(2)} SOL${ev.sol >= 1 && ev.sol < 4 ? ' (regla 1-4 ✓)' : ''} | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s`);
   save();
@@ -161,7 +162,7 @@ async function onSell(ev, reason = 'espejo') {
   }
   st.balance += out;
   const ret = out / pos.size - 1;
-  st.closed.push({ mint: ev.mint, ret, size: pos.size, out, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: pos.whaleSol, kind: pos.pool.kind, poolSol: pos.poolSol, rule14: pos.whaleSol >= 1 && pos.whaleSol < 4, reason, peak: pos.peak ?? null });
+  st.closed.push({ mint: ev.mint, ret, size: pos.size, out, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: pos.whaleSol, kind: pos.pool.kind, poolSol: pos.poolSol, rule14: pos.whaleSol >= 1 && pos.whaleSol < 4, reason, peak: pos.peak ?? null, rise: pos.rise ?? null, route: pos.route ?? null });
   emit({ type: 'sell', mint: ev.mint, ret, holdS: (Date.now() - pos.openedAt) / 1000 });
   delete st.open[ev.mint];
   const eq = st.balance + Object.values(st.open).reduce((a, o) => a + o.size, 0);
