@@ -168,7 +168,8 @@ async function processSig(sig, blockTime, via) {
   if (seen.has(sig)) return;
   seen.add(sig);
   let tx = null;
-  for (let i = 0; i < 12 && !tx; i++) { tx = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 1, encoding: 'json', commitment: 'confirmed' }]); if (!tx) await sleep(250); }
+  // Aviso 'processed' (antes): la tx se puede leer en cuanto se confirma (~0,4-1 s); reintento rápido
+  for (let i = 0; i < 30 && !tx; i++) { tx = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 1, encoding: 'json', commitment: 'confirmed' }]); if (!tx) await sleep(150); }
   const ev = tx && parse(tx);
   if (!ev) return;
   const bt = blockTime || tx.blockTime || Date.now() / 1000;
@@ -181,7 +182,7 @@ async function processSig(sig, blockTime, via) {
 let wsAlive = false;
 function startWs() {
   const ws = new WebSocket(RPC.replace('https://', 'wss://'));
-  ws.onopen = () => { wsAlive = true; ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [W] }, { commitment: 'confirmed' }] })); log('WebSocket conectado: detección en tiempo real'); };
+  ws.onopen = () => { wsAlive = true; ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [W] }, { commitment: 'processed' }] })); log('WebSocket conectado: detección en tiempo real'); };
   ws.onmessage = m => {
     try {
       const j = JSON.parse(String(m.data));
