@@ -57,7 +57,7 @@ setInterval(async () => {
 // Un solo saldo (START_SOL) que copia a todas las ballenas: cada compra mete SHARED_FRACTION del saldo LIBRE.
 const CF = path.join(ROOT, 'data', 'cartera.json');
 const START = Number(process.env.START_SOL || 0.09);
-const SHARED_FRACTION = Number(process.env.SHARED_FRACTION || 1.0); // máxima probabilidad de >= +10 € el día 1 (simulación)
+const SHARED_FRACTION = Number(process.env.SHARED_FRACTION || 0.25); // 25 %: con 184 trades nuevos la ventaja no se confirma; apostar fuerte hundiría la cuenta
 const MAX_TRADE_SOL = Number(process.env.MAX_TRADE_SOL || 1);
 const cart = fs.existsSync(CF) ? JSON.parse(fs.readFileSync(CF, 'utf8')) : { startedAt: Date.now(), start: START, cash: START, open: {}, closed: [], curve: [[Date.now(), START]] };
 const saveCart = () => fs.writeFileSync(CF, JSON.stringify(cart));
