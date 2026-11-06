@@ -149,7 +149,7 @@ async function load() {
     const n = c.closed.length, w = c.closed.filter(x => x.ret > 0).length;
     const m = n ? c.closed.reduce((a, x) => a + x.ret, 0) / n : null;
     const lg = c.closed.map(x => x.lagMs).filter(Boolean);
-    const rule = (c.rule[1] < 1e6 ? `copia compras de ${c.rule[0]}–${c.rule[1]} SOL` : 'copia todas sus compras') + (c.maxRise != null && c.maxRise < 1 ? ` · solo si el precio subió ≤ ${Math.round(c.maxRise * 100)} % (llegar antes que los bots)` : '') + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>');
+    const rule = (c.rule[1] < 1e6 ? `copia compras de ${c.rule[0]}–${c.rule[1]} SOL` : 'copia todas sus compras') + (c.maxRise != null && c.maxRise < 1 ? ` · solo si el precio subió ≤ ${Math.round(c.maxRise * 100)} % (llegar antes que los bots)` : '') + (c.trail ? ` · trailing ${Math.round(c.trail*100)} % tras +${Math.round(c.trailArm*100)} %` : '') + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>');
     let verdict = '<span class="pill neutral">pocos datos</span>';
     if (n >= 8 && c.expected != null) verdict = m >= c.expected * 0.5 ? '<span class="pill ok">aguanta el histórico</span>' : m > 0 ? '<span class="pill neutral">por debajo del histórico</span>' : '<span class="pill bad">perdiendo en vivo</span>';
     const rows = [...c.open.map(o => `<tr><td>${o.mint.slice(0, 6)}</td><td class="sub">abierta</td><td>${o.whaleSol?.toFixed(2) ?? '–'}</td><td>${ago(o.openedAt)}</td></tr>`),

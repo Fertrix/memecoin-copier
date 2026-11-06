@@ -120,7 +120,8 @@ async function onBuy(ev, sig, txTime) {
   const q = await jupQuote(WSOL, ev.mint, lamports);
   if (!q) return onBuyPool(ev, sig, txTime); // sin ruta en Jupiter: método de lectura directa del pool
   st.balance -= size;
-  st.open[ev.mint] = { size, tokensRaw: q.out.toString(), route: q.route, pool: ev.pool, whaleSig: sig, whaleSol: ev.sol, openedAt: Date.now(), lagMs: Date.now() - txTime * 1000 };
+  const pIn = ev.pool.kind === 'curva' ? await poolPrice(ev.pool) : null;
+  st.open[ev.mint] = { size, tokensRaw: q.out.toString(), route: q.route, pool: ev.pool, whaleSig: sig, whaleSol: ev.sol, openedAt: Date.now(), lagMs: Date.now() - txTime * 1000, vSolEntry: pIn?.solR ?? null, peak: 1 };
   emit({ type: 'buy', mint: ev.mint, whaleSol: ev.sol, kind: ev.pool.kind, route: q.route, lagMs: st.open[ev.mint].lagMs });
   log(`COMPRA copiada ${ev.mint.slice(0, 6)} vía ${q.route} | ballena ${ev.sol.toFixed(2)} SOL${ev.sol >= 1 && ev.sol < 4 ? ' (regla 1-4 ✓)' : ''} | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s`);
   save();
@@ -142,8 +143,9 @@ async function onBuyPool(ev, sig, txTime) {
   log(`COMPRA copiada ${ev.mint.slice(0, 6)} (${ev.pool.kind}) | ballena ${ev.sol.toFixed(2)} SOL | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s`);
   save();
 }
-async function onSell(ev) {
-  const pos = st.open[ev.mint]; if (!pos) return;
+async function onSell(ev, reason = 'espejo') {
+  const pos = st.open[ev.mint]; if (!pos || pos.closing) return;
+  pos.closing = true;
   await sleep(LAT);
   let out;
   if (pos.tokensRaw) {
@@ -153,20 +155,32 @@ async function onSell(ev) {
     out = q ? Math.max(0, Number(q.out) / 1e9 - PRIO) : 0;
   } else {
     const p = await poolPrice(pos.pool);
-    if (!p) { log(`venta ${ev.mint.slice(0, 6)}: no pude leer el pool, se reintentará en la siguiente venta de la ballena`); return; }
+    if (!p) { pos.closing = false; log(`venta ${ev.mint.slice(0, 6)}: no pude leer el pool, se reintentará`); return; }
     const price = p.price;
     out = Math.max(0, (pos.tokens * price * (1 - (p ? pos.size / p.solR : 0))) * (1 - FEE) - PRIO);
   }
   st.balance += out;
   const ret = out / pos.size - 1;
-  st.closed.push({ mint: ev.mint, ret, size: pos.size, out, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: pos.whaleSol, kind: pos.pool.kind, poolSol: pos.poolSol, rule14: pos.whaleSol >= 1 && pos.whaleSol < 4 });
+  st.closed.push({ mint: ev.mint, ret, size: pos.size, out, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: pos.whaleSol, kind: pos.pool.kind, poolSol: pos.poolSol, rule14: pos.whaleSol >= 1 && pos.whaleSol < 4, reason, peak: pos.peak ?? null });
   emit({ type: 'sell', mint: ev.mint, ret, holdS: (Date.now() - pos.openedAt) / 1000 });
   delete st.open[ev.mint];
   const eq = st.balance + Object.values(st.open).reduce((a, o) => a + o.size, 0);
   const n = st.closed.length, w = st.closed.filter(c => c.ret > 0).length;
-  log(`VENTA copiada ${ev.mint.slice(0, 6)} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)}% | equity ${eq.toFixed(4)} SOL (x${(eq / START_SOL).toFixed(2)}) | ${n} cerrados, ${w} ganadores | créditos ${st.credits}`);
+  log(`VENTA (${reason}) ${ev.mint.slice(0, 6)} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)}% | equity ${eq.toFixed(4)} SOL (x${(eq / START_SOL).toFixed(2)}) | ${n} cerrados, ${w} ganadores | créditos ${st.credits}`);
   save();
 }
+
+// Trailing stop: si la posición llega a +TRAIL_ARM y luego cae TRAIL desde el máximo, vendemos sin esperar a la ballena.
+const TRAIL = Number(process.env.TRAIL ?? 0), TRAIL_ARM = Number(process.env.TRAIL_ARM ?? 0.4);
+if (TRAIL > 0) setInterval(async () => {
+  for (const [mint, pos] of Object.entries(st.open)) {
+    if (pos.closing || !pos.vSolEntry || pos.pool.kind !== 'curva') continue;
+    const p = await poolPrice(pos.pool); if (!p) continue;
+    const r = (p.solR / pos.vSolEntry) ** 2;
+    pos.peak = Math.max(pos.peak || 1, r);
+    if (pos.peak >= 1 + TRAIL_ARM && r <= pos.peak * (1 - TRAIL)) { log(`trailing ${mint.slice(0, 6)}: máximo x${pos.peak.toFixed(2)}, ahora x${r.toFixed(2)} -> vendemos`); onSell({ mint }, 'trailing'); }
+  }
+}, 1500);
 
 async function loop() {
   log(`Copiador PAPER de ${W.slice(0, 6)} | saldo ${st.balance.toFixed(4)} SOL | ${FRACTION * 100}% por trade | latencia ${LAT} ms`);

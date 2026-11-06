@@ -52,7 +52,7 @@ setInterval(async () => {
 // Un solo saldo (START_SOL) que copia a todas las ballenas: cada compra mete SHARED_FRACTION del saldo LIBRE.
 const CF = path.join(ROOT, 'data', 'cartera.json');
 const START = Number(process.env.START_SOL || 0.09);
-const SHARED_FRACTION = Number(process.env.SHARED_FRACTION || 0.25);
+const SHARED_FRACTION = Number(process.env.SHARED_FRACTION || 1.0); // máxima probabilidad de >= +10 € el día 1 (simulación)
 const MAX_TRADE_SOL = Number(process.env.MAX_TRADE_SOL || 1);
 const cart = fs.existsSync(CF) ? JSON.parse(fs.readFileSync(CF, 'utf8')) : { startedAt: Date.now(), start: START, cash: START, open: {}, closed: [], curve: [[Date.now(), START]] };
 const saveCart = () => fs.writeFileSync(CF, JSON.stringify(cart));
@@ -87,7 +87,7 @@ const KIDS = new Set();
 const shutdown = () => { for (const k of KIDS) { try { k.kill(); } catch {} } process.exit(0); };
 process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown); process.on('disconnect', shutdown);
 function start(c) {
-  const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), MAX_RISE: String(c.maxRise ?? 1), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
+  const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), MAX_RISE: String(c.maxRise ?? 1), TRAIL: String(c.trail ?? 0), TRAIL_ARM: String(c.trailArm ?? 0.4), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
   const ch = fork(path.join(DIR, 'livecopy.mjs'), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
@@ -103,10 +103,10 @@ function status() {
   const copiers = COPIERS.map(c => {
     const s = readState(c);
     const startSol = c.startSol ?? 0.09;
-    if (!s) return { name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, inCartera: c.cartera !== false, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
+    if (!s) return { name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
     const open = Object.entries(s.open).map(([mint, o]) => ({ mint, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs }));
     return {
-      name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, inCartera: c.cartera !== false, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
+      name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
       equity: s.balance + open.reduce((a, o) => a + o.size, 0),
       closed: s.closed.map(x => ({ mint: x.mint, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol })),
       open

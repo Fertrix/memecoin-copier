@@ -6,10 +6,12 @@
     "ruleMin": 1,
     "ruleMax": 4,
     "maxRise": 0.03,
-    "fraction": 0.25,
+    "fraction": 1.0,
     "startSol": 0.09,
-    "expected": 0.21,
-    "cartera": true
+    "expected": 0.25,
+    "cartera": true,
+    "trail": 0.15,
+    "trailArm": 0.4
   },
   {
     "name": "clukz",
