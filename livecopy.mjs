@@ -20,6 +20,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const st = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { startedAt: Date.now(), balance: START_SOL, open: {}, closed: [], seen: [], credits: 0 };
 const seen = new Set(st.seen);
+// Si el proceso padre (app.mjs) se reinicia o desaparece, este copiador se cierra para no quedar duplicado
+process.on('disconnect', () => process.exit(0));
 const emit = m => { try { if (process.send) process.send(m); } catch {} };
 const save = () => { st.seen = [...seen].slice(-3000); fs.writeFileSync(STATE, JSON.stringify(st, null, 1)); };
 const log = m => console.log(`[${new Date().toLocaleTimeString('es-ES')}] ${m}`);

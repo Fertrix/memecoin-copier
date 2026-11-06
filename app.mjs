@@ -82,13 +82,17 @@ function onEvent(name, m) {
 }
 
 // ---------- Copiadores ----------
+const KIDS = new Set();
+const shutdown = () => { for (const k of KIDS) { try { k.kill(); } catch {} } process.exit(0); };
+process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown); process.on('disconnect', shutdown);
 function start(c) {
   const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
   const ch = fork(path.join(DIR, 'livecopy.mjs'), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
+  KIDS.add(ch);
   ch.on('message', m => { try { onEvent(c.name, m); } catch (e) { console.error('evento', e); } });
-  ch.on('exit', code => { console.log(`[${c.name}] se ha parado (código ${code}); relanzando en 10 s`); setTimeout(() => start(c), 10000); });
+  ch.on('exit', code => { KIDS.delete(ch); console.log(`[${c.name}] se ha parado (código ${code}); relanzando en 10 s`); setTimeout(() => start(c), 10000); });
 }
 for (const c of COPIERS) start(c);
 
