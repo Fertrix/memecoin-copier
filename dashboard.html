@@ -169,7 +169,7 @@ async function load() {
   document.getElementById('uptime').textContent = 'encendido hace ' + ago(s.bootAt);
   document.getElementById('ver').innerHTML = 'versión ' + (s.version || 'local') + (s.errors ? ` · <span class="down">${s.errors} errores</span>` : ' · sin errores');
   document.getElementById('logs').href = '/api/logs?n=300' + (tok ? '&t=' + encodeURIComponent(tok) : '');
-  document.getElementById('foot').innerHTML = `Simulación en papel: entradas y salidas con cotizaciones reales de Jupiter tras el retraso medido desde la transacción de la ballena, con comisiones y priority fee. Nada se firma ni se envía.<br>Cada ballena tiene además su propia cuenta de prueba de ${s.copiers[0]?.startSol ?? 0.09} SOL (tarjetas); la cartera única es la que importa para tu objetivo. Se actualiza cada 10 s.`;
+  document.getElementById('foot').innerHTML = `Simulación en papel: entradas y salidas con cotizaciones reales de Jupiter tras el retraso medido desde la transacción de la ballena, con comisiones y priority fee. Nada se firma ni se envía.<br>Cada ballena tiene además su propia cuenta de prueba de ${s.copiers[0]?.startSol ?? 0.09} SOL (tarjetas); la cartera única es la que importa para tu objetivo. Se actualiza cada 10 s. (auto-actualización OK)`;
 }
 load(); setInterval(load, 10000);
 </script>
