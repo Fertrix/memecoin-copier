@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Copiador Paper</title>
+<style>
+  :root { --bg:#0d1015; --card:#151a21; --card2:#1a2029; --line:#252c36; --text:#e6edf3; --mute:#8b949e; --up:#3fb950; --down:#f85149; --accent:#58a6ff; --gold:#e3b341; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:1120px; margin:0 auto; padding:16px; }
+  header { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; margin-bottom:12px; }
+  h1 { font-size:20px; margin:0 8px 0 0; }
+  .tag { font-size:12px; color:var(--mute); border:1px solid var(--line); border-radius:999px; padding:2px 10px; }
+  .tag.live::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--up); margin-right:6px; vertical-align:1px; }
+  .hero { background:linear-gradient(180deg,var(--card2),var(--card)); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .hero-top { display:flex; flex-wrap:wrap; gap:14px 28px; align-items:flex-end; }
+  .lbl { color:var(--mute); font-size:12px; }
+  .huge { font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .mid { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .up { color:var(--up); } .down { color:var(--down); }
+  .bar { height:10px; background:#0f141a; border:1px solid var(--line); border-radius:999px; overflow:hidden; margin:14px 0 4px; }
+  .bar > div { height:100%; background:linear-gradient(90deg,#2ea043,var(--gold)); width:0; transition:width .6s; }
+  .chart { width:100%; height:180px; display:block; margin-top:10px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:14px 0; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .kpi .v { font-size:18px; font-weight:600; margin-top:2px; font-variant-numeric:tabular-nums; }
+  h3 { font-size:14px; margin:18px 0 8px; color:var(--mute); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; min-width:0; }
+  .card h2 { font-size:15px; margin:0 0 2px; display:flex; justify-content:space-between; gap:8px; }
+  .sub { color:var(--mute); font-size:12px; word-break:break-all; }
+  .row { display:flex; flex-wrap:wrap; gap:6px 16px; margin:8px 0; font-size:12px; }
+  .row b { font-variant-numeric:tabular-nums; }
+  .spark { width:100%; height:60px; display:block; margin:6px 0; }
+  table { width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
+  th, td { text-align:left; padding:5px 4px; border-top:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--mute); font-weight:500; }
+  .tbl { overflow-x:auto; }
+  .pill { font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); }
+  .ok { color:var(--up); border-color:#23462c; } .bad { color:var(--down); border-color:#4d2626; } .neutral { color:var(--mute); }
+  footer { color:var(--mute); font-size:12px; margin-top:18px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Copiador de ballenas</h1>
+    <span class="tag">PAPER · 0 € reales</span>
+    <span class="tag live" id="upd">conectando…</span>
+    <span class="tag" id="uptime"></span>
+    <span class="tag" id="ver"></span>
+    <a class="tag" id="logs" href="#" target="_blank" style="color:var(--accent);text-decoration:none">registros</a>
+  </header>
+
+  <section class="hero">
+    <div class="lbl">Cartera única — lo que harías con tu saldo real copiando a todas las ballenas</div>
+    <div class="hero-top">
+      <div><div class="huge" id="cEq">–</div><div class="sub" id="cEur"></div></div>
+      <div><div class="lbl">Resultado</div><div class="mid" id="cRes">–</div></div>
+      <div><div class="lbl">Trades</div><div class="mid" id="cTr">–</div></div>
+      <div><div class="lbl">Abiertas ahora</div><div class="mid" id="cOpen">–</div></div>
+    </div>
+    <div class="bar"><div id="goalBar"></div></div>
+    <div class="sub" id="goalTxt"></div>
+    <svg class="chart" id="chart" viewBox="0 0 1000 180" preserveAspectRatio="none"></svg>
+    <div class="sub" id="chartRange"></div>
+  </section>
+
+  <div class="kpis" id="kpis"></div>
+
+  <h3>Por día</h3>
+  <div class="card tbl"><table id="days"><thead><tr><th>Día</th><th>Trades</th><th>Ganadores</th><th>Resultado del día</th><th>Saldo al cierre</th></tr></thead><tbody></tbody></table></div>
+
+  <h3>Ballenas copiadas</h3>
+  <div class="grid" id="cards"></div>
+
+  <h3>Últimos trades de la cartera</h3>
+  <div class="card tbl"><table id="trades"><thead><tr><th>Cuándo</th><th>Ballena</th><th>Token</th><th>Metido</th><th>Resultado</th><th>€</th><th>Duración</th></tr></thead><tbody></tbody></table></div>
+
+  <footer id="foot"></footer>
+</div>
+<script>
+const tok = new URLSearchParams(location.search).get('t');
+const api = '/api/status' + (tok ? '?t=' + encodeURIComponent(tok) : '');
+const pct = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + ' %';
+const cls = v => v >= 0 ? 'up' : 'down';
+const eur = (sol, E) => (sol * E).toFixed(2) + ' €';
+const ago = ms => { const s = Math.round((Date.now() - ms) / 1000); return s < 60 ? s + ' s' : s < 3600 ? Math.round(s / 60) + ' min' : s < 86400 ? (s / 3600).toFixed(1) + ' h' : (s / 86400).toFixed(1) + ' d'; };
+const dur = s => s == null ? '–' : s < 60 ? Math.round(s) + ' s' : (s / 60).toFixed(1) + ' min';
+const hhmm = t => new Date(t).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+function lineChart(svg, pts, base) {
+  if (pts.length < 2) { svg.innerHTML = `<text x="500" y="95" fill="#8b949e" font-size="14" text-anchor="middle">La gráfica aparece con el primer trade cerrado</text>`; return; }
+  const t0 = pts[0][0], t1 = pts[pts.length - 1][0] || t0 + 1;
+  const vals = pts.map(p => p[1]).concat([base]); const mn = Math.min(...vals), mx = Math.max(...vals), r = mx - mn || 1;
+  const X = t => (t - t0) / (t1 - t0 || 1) * 1000, Y = v => 170 - (v - mn) / r * 160;
+  const d = pts.map(p => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
+  const last = pts[pts.length - 1][1], col = last >= base ? '#3fb950' : '#f85149';
+  svg.innerHTML = `<line x1="0" x2="1000" y1="${Y(base)}" y2="${Y(base)}" stroke="#30363d" stroke-dasharray="4 4"/>
+    <polygon points="0,${Y(base)} ${d} 1000,${Y(base)}" fill="${col}" opacity=".08"/>
+    <polyline points="${d}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+  document.getElementById('chartRange').textContent = `mín ${mn.toFixed(4)} · máx ${mx.toFixed(4)} SOL · desde ${new Date(t0).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+}
+function spark(c) {
+  let eq = c.startSol; const pts = [eq];
+  for (const x of c.closed) { eq += (x.out ?? x.size * (1 + x.ret)) - x.size; pts.push(eq); }
+  if (pts.length < 2) return '<svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none"><line x1="0" y1="15" x2="100" y2="15" stroke="#252c36"/></svg>';
+  const mn = Math.min(...pts, c.startSol), mx = Math.max(...pts, c.startSol), r = mx - mn || 1;
+  const d = pts.map((p, i) => `${(i / (pts.length - 1) * 100).toFixed(2)},${(28 - (p - mn) / r * 26).toFixed(2)}`).join(' ');
+  const b = 28 - (c.startSol - mn) / r * 26;
+  return `<svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none"><line x1="0" y1="${b}" x2="100" y2="${b}" stroke="#30363d" stroke-dasharray="2 2"/><polyline fill="none" stroke="${pts[pts.length - 1] >= c.startSol ? '#3fb950' : '#f85149'}" stroke-width="1.4" vector-effect="non-scaling-stroke" points="${d}"/></svg>`;
+}
+async function load() {
+  let s;
+  try { s = await (await fetch(api, { cache: 'no-store' })).json(); } catch { document.getElementById('upd').textContent = 'sin conexión con el bot'; return; }
+  const E = s.eurPerSol, C = s.cartera;
+  // Cartera única
+  const res = C.equity / C.start - 1, profitEur = (C.equity - C.start) * E;
+  document.getElementById('cEq').textContent = C.equity.toFixed(4) + ' SOL';
+  document.getElementById('cEur').textContent = '≈ ' + eur(C.equity, E) + ' · empezó con ' + eur(C.start, E) + ' · ' + Math.round(C.fraction * 100) + ' % del saldo libre por trade (máx ' + C.maxTrade + ' SOL)';
+  document.getElementById('cRes').innerHTML = `<span class="${cls(res)}">${pct(res)}</span> <span class="sub">${profitEur >= 0 ? '+' : ''}${profitEur.toFixed(2)} €</span>`;
+  document.getElementById('cTr').textContent = `${C.nClosed} · ${C.nClosed ? Math.round(C.wins / C.nClosed * 100) : 0} % ganadores`;
+  document.getElementById('cOpen').textContent = C.open.length;
+  const prog = Math.max(0, Math.min(1, profitEur / s.goalEur));
+  document.getElementById('goalBar').style.width = (prog * 100).toFixed(1) + '%';
+  document.getElementById('goalTxt').textContent = `Objetivo: +${s.goalEur} € de beneficio · llevamos ${profitEur >= 0 ? '+' : ''}${profitEur.toFixed(2)} € (${(prog * 100).toFixed(1)} %)`;
+  lineChart(document.getElementById('chart'), C.curve, C.start);
+  // KPIs
+  const all = s.copiers.flatMap(c => c.closed);
+  const lag = all.map(x => x.lagMs).filter(Boolean);
+  const credits = s.copiers.reduce((a, c) => a + (c.credits || 0), 0);
+  const best = C.closed.length ? Math.max(...C.closed.map(x => x.ret)) : null, worst = C.closed.length ? Math.min(...C.closed.map(x => x.ret)) : null;
+  const avg = C.closed.length ? C.closed.reduce((a, x) => a + x.ret, 0) / C.closed.length : null;
+  document.getElementById('kpis').innerHTML = [
+    ['Media por trade', avg == null ? '–' : `<span class="${cls(avg)}">${pct(avg)}</span>`],
+    ['Mejor trade', best == null ? '–' : `<span class="up">${pct(best)}</span>`],
+    ['Peor trade', worst == null ? '–' : `<span class="down">${pct(worst)}</span>`],
+    ['Retraso medio', lag.length ? (lag.reduce((a, b) => a + b, 0) / lag.length / 1000).toFixed(1) + ' s' : '–'],
+    ['Créditos Helius (sesión)', credits.toLocaleString('es-ES')],
+  ].map(([l, v]) => `<div class="kpi"><div class="lbl">${l}</div><div class="v">${v}</div></div>`).join('');
+  // Por día (cartera)
+  const days = {};
+  let run = C.start;
+  for (const x of C.closed) { const k = new Date(x.at).toLocaleDateString('es-ES'); run += x.pnl; const d = days[k] ||= { n: 0, w: 0, pnl: 0, end: 0 }; d.n++; if (x.ret > 0) d.w++; d.pnl += x.pnl; d.end = run; }
+  document.querySelector('#days tbody').innerHTML = Object.entries(days).reverse().map(([k, d]) => `<tr><td>${k}</td><td>${d.n}</td><td>${d.w}</td><td class="${cls(d.pnl)}">${d.pnl >= 0 ? '+' : ''}${(d.pnl * E).toFixed(2)} €</td><td>${d.end.toFixed(4)} SOL (${eur(d.end, E)})</td></tr>`).join('') || '<tr><td colspan="5" class="sub">Aún sin trades cerrados</td></tr>';
+  // Ballenas
+  document.getElementById('cards').innerHTML = s.copiers.map(c => {
+    const n = c.closed.length, w = c.closed.filter(x => x.ret > 0).length;
+    const m = n ? c.closed.reduce((a, x) => a + x.ret, 0) / n : null;
+    const lg = c.closed.map(x => x.lagMs).filter(Boolean);
+    const rule = c.rule[1] < 1e6 ? `copia compras de ${c.rule[0]}–${c.rule[1]} SOL` : 'copia todas sus compras';
+    let verdict = '<span class="pill neutral">pocos datos</span>';
+    if (n >= 8 && c.expected != null) verdict = m >= c.expected * 0.5 ? '<span class="pill ok">aguanta el histórico</span>' : m > 0 ? '<span class="pill neutral">por debajo del histórico</span>' : '<span class="pill bad">perdiendo en vivo</span>';
+    const rows = [...c.open.map(o => `<tr><td>${o.mint.slice(0, 6)}</td><td class="sub">abierta</td><td>${o.whaleSol?.toFixed(2) ?? '–'}</td><td>${ago(o.openedAt)}</td></tr>`),
+      ...c.closed.slice(-8).reverse().map(x => `<tr><td>${x.mint.slice(0, 6)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td>${x.whaleSol?.toFixed(2) ?? '–'}</td><td>${ago(x.at)}</td></tr>`)].join('');
+    return `<div class="card"><h2><span>${c.label}</span>${verdict}</h2>
+      <div class="sub">${c.wallet}</div><div class="sub">${rule}</div>
+      <div class="row"><span>Trades <b>${n}</b></span><span>Ganadores <b>${n ? Math.round(w / n * 100) : 0} %</b></span>
+        <span>Media en vivo <b class="${m == null ? '' : cls(m)}">${m == null ? '–' : pct(m)}</b></span>
+        <span>Histórico <b>${c.expected == null ? '–' : pct(c.expected)}</b></span>
+        <span>Retraso <b>${lg.length ? (lg.reduce((a, b) => a + b, 0) / lg.length / 1000).toFixed(1) + ' s' : '–'}</b></span></div>
+      ${spark(c)}
+      <div class="tbl"><table><thead><tr><th>Token</th><th>Resultado</th><th>Ballena (SOL)</th><th>Hace</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="sub">Esperando a que la ballena opere…</td></tr>'}</tbody></table></div></div>`;
+  }).join('');
+  // Últimos trades
+  document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${o.name}</td><td>${o.mint.slice(0, 6)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),
+    ...C.closed.slice(-25).reverse().map(x => `<tr><td>${hhmm(x.at)}</td><td>${x.name}</td><td>${x.mint.slice(0, 6)}</td><td>${x.size.toFixed(4)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="${cls(x.pnl)}">${(x.pnl * E).toFixed(2)}</td><td>${dur(x.holdS)}</td></tr>`)].join('') || '<tr><td colspan="7" class="sub">Aún sin trades</td></tr>';
+  document.getElementById('upd').textContent = 'en vivo · ' + new Date(s.now).toLocaleTimeString('es-ES');
+  document.getElementById('uptime').textContent = 'encendido hace ' + ago(s.bootAt);
+  document.getElementById('ver').innerHTML = 'versión ' + (s.version || 'local') + (s.errors ? ` · <span class="down">${s.errors} errores</span>` : ' · sin errores');
+  document.getElementById('logs').href = '/api/logs?n=300' + (tok ? '&t=' + encodeURIComponent(tok) : '');
+  document.getElementById('foot').innerHTML = `Simulación en papel: entradas y salidas con cotizaciones reales de Jupiter tras el retraso medido desde la transacción de la ballena, con comisiones y priority fee. Nada se firma ni se envía.<br>Cada ballena tiene además su propia cuenta de prueba de ${s.copiers[0]?.startSol ?? 0.09} SOL (tarjetas); la cartera única es la que importa para tu objetivo. Se actualiza cada 10 s.`;
+}
+load(); setInterval(load, 10000);
+</script>
+</body>
+</html>
