@@ -132,16 +132,45 @@ setInterval(() => summary(false), 10 * 60 * 1000);
 setInterval(() => summary(true), 6 * 60 * 60 * 1000);
 
 // ---------- Panel web ----------
+// Contraseña: PANEL_PASSWORD en .env. Sin ella el panel queda abierto.
+// /api/monitor es SOLO LECTURA y pública (estado + registros) para poder revisar el bot a distancia; no permite cambiar nada.
+import crypto from 'node:crypto';
 const PAGE = () => fs.readFileSync(path.join(DIR, 'dashboard.html'), 'utf8');
+const LOGIN = () => fs.readFileSync(path.join(DIR, 'login.html'), 'utf8');
 const PORT = Number(process.env.SERVER_PORT || process.env.PORT || 3000);
+const PASS = process.env.PANEL_PASSWORD || '';
+const sessionValue = () => crypto.createHmac('sha256', PASS).update('panel-session-v1').digest('hex');
+const cookies = req => Object.fromEntries((req.headers.cookie || '').split(';').map(c => c.trim().split('=')).filter(p => p[0]).map(([k, ...v]) => [k, decodeURIComponent(v.join('='))]));
+const loggedIn = req => !PASS || cookies(req).panel === sessionValue();
+const failed = new Map(); // intentos fallidos por IP (freno a fuerza bruta)
+const json = (res, obj) => { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
+const logsText = (u) => { const n = Math.min(800, Number(u.searchParams.get('n') || 200)); return (u.searchParams.get('err') ? ERR : LOG).slice(-n).join('\n'); };
+
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
-  if (process.env.DASH_TOKEN && u.searchParams.get('t') !== process.env.DASH_TOKEN) { res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Falta ?t=<token>'); }
-  if (u.pathname === '/api/logs') {
-    const n = Math.min(800, Number(u.searchParams.get('n') || 200));
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
-    return res.end((u.searchParams.get('err') ? ERR : LOG).slice(-n).join('\n'));
+  const ip = req.socket.remoteAddress || '?';
+  // Solo lectura, pública
+  if (u.pathname === '/api/monitor') return json(res, { ...status(), logs: LOG.slice(-Math.min(400, Number(u.searchParams.get('n') || 150))), errorsList: ERR.slice(-50) });
+  // Login
+  if (u.pathname === '/login' && req.method === 'POST') {
+    const f = failed.get(ip) || { n: 0, until: 0 };
+    if (Date.now() < f.until) { res.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Demasiados intentos. Espera un minuto.'); }
+    let body = ''; req.on('data', c => { body += c; if (body.length > 2000) req.destroy(); });
+    return req.on('end', () => {
+      const pw = new URLSearchParams(body).get('password') || '';
+      const ok = PASS && pw.length === PASS.length && crypto.timingSafeEqual(Buffer.from(pw), Buffer.from(PASS));
+      if (!ok) { f.n++; if (f.n >= 5) { f.until = Date.now() + 60000; f.n = 0; } failed.set(ip, f); res.writeHead(302, { Location: '/?error=1' }); return res.end(); }
+      failed.delete(ip);
+      res.writeHead(302, { 'Set-Cookie': `panel=${sessionValue()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}`, Location: '/' });
+      return res.end();
+    });
   }
-  if (u.pathname === '/api/status') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify(status())); }
+  if (u.pathname === '/logout') { res.writeHead(302, { 'Set-Cookie': 'panel=; Path=/; Max-Age=0', Location: '/' }); return res.end(); }
+  if (!loggedIn(req)) {
+    if (u.pathname.startsWith('/api/')) { res.writeHead(401, { 'Content-Type': 'application/json' }); return res.end('{"error":"login"}'); }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(LOGIN());
+  }
+  if (u.pathname === '/api/logs') { res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(logsText(u)); }
+  if (u.pathname === '/api/status') return json(res, { ...status(), auth: !!PASS });
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(PAGE());
-}).listen(PORT, '0.0.0.0', () => console.log(`Panel web en el puerto ${PORT} (abre http://<ip-del-servidor>:${PORT})`));
+}).listen(PORT, '0.0.0.0', () => console.log(`Panel web en el puerto ${PORT}${PASS ? ' (con contraseña)' : ' (SIN contraseña: añade PANEL_PASSWORD en .env)'}`));

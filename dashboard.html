@@ -50,6 +50,7 @@
     <span class="tag live" id="upd">conectando…</span>
     <span class="tag" id="uptime"></span>
     <span class="tag" id="ver"></span>
+    <a class="tag" id="logout" href="/logout" style="color:var(--mute);text-decoration:none;display:none">salir</a>
     <a class="tag" id="logs" href="#" target="_blank" style="color:var(--accent);text-decoration:none">registros</a>
   </header>
 
@@ -112,7 +113,7 @@ function spark(c) {
 }
 async function load() {
   let s;
-  try { s = await (await fetch(api, { cache: 'no-store' })).json(); } catch { document.getElementById('upd').textContent = 'sin conexión con el bot'; return; }
+  try { const r = await fetch(api, { cache: 'no-store' }); if (r.status === 401) return location.reload(); s = await r.json(); } catch { document.getElementById('upd').textContent = 'sin conexión con el bot'; return; }
   const E = s.eurPerSol, C = s.cartera;
   // Cartera única
   const res = C.equity / C.start - 1, profitEur = (C.equity - C.start) * E;
@@ -166,6 +167,7 @@ async function load() {
   document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${o.name}</td><td>${o.mint.slice(0, 6)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),
     ...C.closed.slice(-25).reverse().map(x => `<tr><td>${hhmm(x.at)}</td><td>${x.name}</td><td>${x.mint.slice(0, 6)}</td><td>${x.size.toFixed(4)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="${cls(x.pnl)}">${(x.pnl * E).toFixed(2)}</td><td>${dur(x.holdS)}</td></tr>`)].join('') || '<tr><td colspan="7" class="sub">Aún sin trades</td></tr>';
   document.getElementById('upd').textContent = 'en vivo · ' + new Date(s.now).toLocaleTimeString('es-ES');
+  if (s.auth) document.getElementById('logout').style.display = '';
   document.getElementById('uptime').textContent = 'encendido hace ' + ago(s.bootAt);
   document.getElementById('ver').innerHTML = 'versión ' + (s.version || 'local') + (s.errors ? ` · <span class="down">${s.errors} errores</span>` : ' · sin errores');
   document.getElementById('logs').href = '/api/logs?n=300' + (tok ? '&t=' + encodeURIComponent(tok) : '');

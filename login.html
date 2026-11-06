@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acceso · Copiador</title>
+<style>
+  :root { --bg:#07090d; --card:#11161d; --line:#232b36; --text:#e6edf3; --mute:#8b949e; --up:#3fb950; --gold:#e3b341; }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; display:grid; place-items:center; overflow:hidden; }
+  .glow { position:fixed; inset:-30%; background:
+      radial-gradient(40% 35% at 30% 30%, rgba(63,185,80,.18), transparent 70%),
+      radial-gradient(35% 30% at 70% 70%, rgba(227,179,65,.14), transparent 70%);
+    filter:blur(30px); animation:drift 18s ease-in-out infinite alternate; pointer-events:none; }
+  @keyframes drift { to { transform:translate(4%, -3%) rotate(8deg); } }
+  .grid { position:fixed; inset:0; background-image:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size:44px 44px; mask-image:radial-gradient(ellipse at center, #000 30%, transparent 75%); pointer-events:none; }
+  .card { position:relative; width:min(380px, calc(100vw - 32px)); background:rgba(17,22,29,.88); border:1px solid var(--line); border-radius:18px; padding:28px 24px 22px; backdrop-filter:blur(8px); box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .logo { width:54px; height:54px; border-radius:14px; display:grid; place-items:center; margin:0 auto 14px; background:linear-gradient(135deg,#2ea043,#e3b341); box-shadow:0 0 30px rgba(63,185,80,.35); font-size:26px; }
+  h1 { margin:0; text-align:center; font-size:20px; letter-spacing:.02em; }
+  p { margin:4px 0 20px; text-align:center; color:var(--mute); font-size:13px; }
+  input { width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:#0b0f14; color:var(--text); font-size:15px; outline:none; transition:border-color .2s, box-shadow .2s; }
+  input:focus { border-color:#2ea043; box-shadow:0 0 0 3px rgba(46,160,67,.2); }
+  button { width:100%; margin-top:12px; padding:12px; border:0; border-radius:10px; font-weight:600; font-size:15px; color:#07090d; background:linear-gradient(90deg,#3fb950,#e3b341); cursor:pointer; transition:transform .1s, filter .2s; }
+  button:hover { filter:brightness(1.08); } button:active { transform:scale(.99); }
+  .err { color:#f85149; text-align:center; font-size:13px; margin-top:10px; min-height:18px; }
+  .foot { text-align:center; color:var(--mute); font-size:11px; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="glow"></div><div class="grid"></div>
+<form class="card" method="POST" action="/login">
+  <div class="logo">🐋</div>
+  <h1>Copiador de ballenas</h1>
+  <p>Panel privado · simulación en papel</p>
+  <input type="password" name="password" placeholder="Contraseña" autocomplete="current-password" autofocus required>
+  <button type="submit">Entrar</button>
+  <div class="err" id="err"></div>
+  <div class="foot">Sesión guardada 30 días en este navegador</div>
+</form>
+<script>if (new URLSearchParams(location.search).get('error')) document.getElementById('err').textContent = 'Contraseña incorrecta';</script>
+</body>
+</html>
