@@ -74,7 +74,14 @@ function parse(tx) {
   const pb = cands.reduce((a, b) => (Number(b.uiTokenAmount.amount) > Number(a.uiTokenAmount.amount) ? b : a));
   const ws = post.find(b => b.mint === WSOL && b.owner === pb.owner);
   const pool = ws ? { kind: 'amm', owner: pb.owner, tokAcc: keys[pb.accountIndex], solAcc: keys[ws.accountIndex] } : { kind: 'curva', owner: pb.owner };
-  return { mint, side, sol: Math.abs(solCh), pool, remaining: amt(post, mint, W) };
+  // Precio JUSTO DESPUÉS de la tx de la ballena (solo curva de pump.fun: reservas virtuales = reales + 30 SOL / + 279,9 M tokens)
+  // En la curva de pump.fun el precio es proporcional al cuadrado del SOL virtual (30 + SOL real de la cuenta de la curva)
+  let refVSol = null;
+  if (pool.kind === 'curva' && mint.endsWith('pump')) {
+    const ci = keys.indexOf(pb.owner);
+    if (ci >= 0) refVSol = 30 + m.postBalances[ci] / 1e9 - 0.00149;
+  }
+  return { mint, side, sol: Math.abs(solCh), pool, refVSol, remaining: amt(post, mint, W) };
 }
 
 // Cotización REAL ejecutable vía Jupiter (cualquier launchpad/AMM, comisiones del pool incluidas). Devuelve outAmount (unidades raw).
@@ -91,10 +98,21 @@ async function jupQuote(inputMint, outputMint, amountRaw) {
 }
 
 const RULE_MIN = Number(process.env.RULE_MIN ?? 1), RULE_MAX = Number(process.env.RULE_MAX ?? 4);
+const MAX_RISE = Number(process.env.MAX_RISE ?? 1); // 1 = sin filtro; 0.03 = solo copiar si subió <= 3 %
 async function onBuy(ev, sig, txTime) {
   if (st.open[ev.mint]) return;
   // Regla validada fuera de muestra: copiar solo cuando la ballena compra entre 1 y 4 SOL
   if (ev.sol < RULE_MIN || ev.sol >= RULE_MAX) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: ballena ${ev.sol.toFixed(2)} SOL fuera de la regla ${RULE_MIN}-${RULE_MAX} SOL`); return; }
+  // Filtro "llegamos antes que los bots": solo copiar si el precio NO ha subido más de MAX_RISE desde su tx.
+  // Validado en 150 trayectorias tx a tx de 649ot (positivo en las dos mitades); solo curva pump.fun.
+  if (MAX_RISE < 1) {
+    if (!ev.refVSol) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: no es curva de pump.fun (filtro de subida solo validado ahí)`); return; }
+    const now = await poolPrice(ev.pool);
+    if (!now) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: no pude leer la curva`); return; }
+    const rise = (now.solR / ev.refVSol) ** 2 - 1; // poolPrice('curva') devuelve solR = SOL virtual actual
+    if (rise > MAX_RISE) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: el precio ya subió ${(rise * 100).toFixed(1)}% desde su compra (los bots llegaron antes; máx ${(MAX_RISE * 100).toFixed(0)}%)`); return; }
+    log(`compra ${ev.mint.slice(0, 6)} PASA el filtro: subida desde su compra ${(rise * 100).toFixed(1)}% (máx ${(MAX_RISE * 100).toFixed(0)}%)`);
+  }
   await sleep(LAT);
   const size = Math.min(st.balance * FRACTION, st.balance - 0.003);
   if (size < 0.005) return log('saldo insuficiente');
