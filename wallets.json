@@ -123,7 +123,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -138,7 +140,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -153,7 +157,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -168,7 +174,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -183,7 +191,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -198,7 +208,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -213,7 +225,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -228,7 +242,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -243,7 +259,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -258,7 +276,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -273,7 +293,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   },
   {
@@ -288,7 +310,9 @@
     "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
-      "MAX_HOLD_S": "1200"
+      "MAX_HOLD_S": "1200",
+      "ONLY_PUMP": "1",
+      "STATE_RESET": "2026-11-07b"
     }
   }
 ]

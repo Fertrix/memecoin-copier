@@ -21,7 +21,9 @@ const WS_URL = process.env.WS_URL || 'wss://api.mainnet-beta.solana.com';
 let rpcIdx = 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const st = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { startedAt: Date.now(), balance: START_SOL, open: {}, closed: [], seen: [], credits: 0 };
+let st = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
+// STATE_RESET: si cambia, se empieza de cero (p. ej. tras arreglar un fallo que dejó el saldo mal contado)
+if (!st || (process.env.STATE_RESET && st.resetId !== process.env.STATE_RESET)) st = { startedAt: Date.now(), balance: START_SOL, open: {}, closed: [], seen: [], credits: 0, resetId: process.env.STATE_RESET || null };
 const seen = new Set(st.seen);
 // Si el proceso padre (app.mjs) se reinicia o desaparece, este copiador se cierra para no quedar duplicado
 process.on('disconnect', () => process.exit(0));
@@ -107,7 +109,22 @@ async function jupQuote(inputMint, outputMint, amountRaw) {
 
 const RULE_MIN = Number(process.env.RULE_MIN ?? 1), RULE_MAX = Number(process.env.RULE_MAX ?? 4);
 const MAX_RISE = Number(process.env.MAX_RISE ?? 1); // 1 = sin filtro; 0.03 = solo copiar si subió <= 3 %
+// Solo pump.fun (curva) si ONLY_PUMP=1: es lo único validado con datos; otros launchpads (Launchlab, Meteora...) no.
+const ONLY_PUMP = process.env.ONLY_PUMP === '1';
+// Evita compras duplicadas: varias compras seguidas de la ballena en el mismo token llegan a la vez; solo la primera cuenta.
+const pending = new Set(), pendingSell = new Map();
 async function onBuy(ev, sig, txTime) {
+  if (st.open[ev.mint] || pending.has(ev.mint)) return;
+  if (ONLY_PUMP && !(ev.pool.kind === 'curva' && ev.mint.endsWith('pump'))) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: no es la curva de pump.fun (${ev.pool.kind})`); return; }
+  pending.add(ev.mint);
+  try { await onBuyInner(ev, sig, txTime); } finally {
+    pending.delete(ev.mint);
+    // si la ballena vendió mientras comprábamos, aplicar esa venta ahora
+    const ps = pendingSell.get(ev.mint); pendingSell.delete(ev.mint);
+    if (ps && st.open[ev.mint]) onSell(ps);
+  }
+}
+async function onBuyInner(ev, sig, txTime) {
   if (st.open[ev.mint]) return;
   // Regla validada fuera de muestra: copiar solo cuando la ballena compra entre 1 y 4 SOL
   if (ev.sol < RULE_MIN || ev.sol >= RULE_MAX) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: ballena ${ev.sol.toFixed(2)} SOL fuera de la regla ${RULE_MIN}-${RULE_MAX} SOL`); return; }
@@ -157,6 +174,11 @@ async function onBuyPool(ev, sig, txTime) {
 const PROPORTIONAL = process.env.PROPORTIONAL !== '0';
 const MAX_HOLD_S = Number(process.env.MAX_HOLD_S ?? 1200);
 async function onSell(ev, reason = 'espejo') {
+  if (pending.has(ev.mint) && reason === 'espejo') {
+    // acumula ventas que llegan mientras compramos (se aplican como una sola, con la fracción total vendida)
+    const prev = pendingSell.get(ev.mint);
+    pendingSell.set(ev.mint, prev ? { ...ev, moved: (prev.moved || 0) + (ev.moved || 0) } : ev); return;
+  }
   const pos = st.open[ev.mint]; if (!pos || pos.closing) return;
   let f = 1;
   if (PROPORTIONAL && reason === 'espejo' && ev.moved > 0 && ev.remaining != null) f = Math.min(1, ev.moved / (ev.moved + ev.remaining));
