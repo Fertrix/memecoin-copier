@@ -11,7 +11,11 @@ const MAX_SUBS = Number(process.env.MAX_SUBS ?? 400);
 const DIR = path.join(process.cwd(), 'data', 'rec');
 fs.mkdirSync(DIR, { recursive: true });
 const log = m => console.log(`[${new Date().toLocaleTimeString('es-ES')}] ${m}`);
-process.on('disconnect', () => process.exit(0));
+// Al reiniciar (actualización), guardar lo que se estaba siguiendo en vez de perderlo
+function flushAll(why) { for (const [c, r] of toks) { r.end = why; r.endAt = Date.now(); try { fs.appendFileSync(path.join(DIR, new Date(r.t0).toISOString().slice(0, 10) + '.jsonl'), JSON.stringify(r) + String.fromCharCode(10)); } catch {} } toks.clear(); }
+process.on('disconnect', () => { flushAll('reinicio'); process.exit(0); });
+process.on('SIGTERM', () => { flushAll('reinicio'); process.exit(0); });
+process.on('SIGINT', () => { flushAll('reinicio'); process.exit(0); });
 
 const toks = new Map();         // curva -> registro
 const subOf = new Map(), curveOfSub = new Map(), reqCurve = new Map();
@@ -51,7 +55,11 @@ function connect() {
 }
 connect();
 setInterval(() => { try { if (ready) ws.send('{"jsonrpc":"2.0","id":9,"method":"getHealth"}'); } catch {} }, 30000);
-setInterval(() => { const now = Date.now(); for (const [c, r] of toks) if (now - r.t0 > TRACK_S * 1000) finish(c, 'tiempo'); else if (now - r.last > IDLE_S * 1000) finish(c, 'inactivo'); }, 5000);
+const RUNNER_SOL = Number(process.env.RUNNER_SOL ?? 15), RUNNER_S = Number(process.env.RUNNER_S ?? 10800);
+const realSol = r => { const x = r.s[r.s.length - 1]; return x ? x[1] / 1e9 - 30 : 0; };
+setInterval(() => { const now = Date.now(); for (const [c, r] of toks) {
+  const limit = (r.runner || realSol(r) >= RUNNER_SOL) ? RUNNER_S : TRACK_S; if (limit === RUNNER_S) r.runner = true;
+  if (now - r.t0 > limit * 1000) finish(c, 'tiempo'); else if (now - r.last > IDLE_S * (r.runner ? 6 : 1) * 1000) finish(c, 'inactivo'); } }, 5000);
 setInterval(() => log(`grabadora: ${stats.launches} lanzamientos, ${toks.size} en seguimiento, ${stats.written} guardados, ${stats.skipped} sin hueco, ${stats.notif} cambios de curva`), 10 * 60 * 1000);
 
 function pp() {
