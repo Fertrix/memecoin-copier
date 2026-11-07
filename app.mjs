@@ -38,7 +38,13 @@ if (!process.env.HELIUS_API_KEY) console.log('Sin HELIUS_API_KEY: se usan solo R
 
 const COPIERS = JSON.parse(fs.readFileSync(path.join(DIR, 'wallets.json'), 'utf8'));
 const BOOT = Date.now();
-const EUR_PER_SOL = Number(process.env.EUR_PER_SOL || 82);
+let EUR_PER_SOL = Number(process.env.EUR_PER_SOL || 82), EUR_AT = 0, EUR_SRC = 'fijo';
+// Precio real de SOL en euros cada minuto (CoinGecko gratis; Binance de respaldo). Si ambos fallan se mantiene el último.
+async function eurTick() {
+  try { const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=eur', { signal: AbortSignal.timeout(8000) }); const v = (await r.json())?.solana?.eur; if (v > 1) { EUR_PER_SOL = v; EUR_AT = Date.now(); EUR_SRC = 'CoinGecko'; return; } } catch {}
+  try { const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=SOLEUR', { signal: AbortSignal.timeout(8000) }); const v = Number((await r.json())?.price); if (v > 1) { EUR_PER_SOL = v; EUR_AT = Date.now(); EUR_SRC = 'Binance'; } } catch {}
+}
+eurTick(); setInterval(eurTick, 60000);
 const GOAL_EUR = Number(process.env.GOAL_EUR || 90);
 
 // ---------- Discord (opcional) ----------
@@ -128,16 +134,17 @@ function status() {
     const s = readState(c);
     const startSol = c.startSol ?? 0.09;
     if (!s) return { name: c.name, label: c.label || c.name, env: c.env || null, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
-    const open = Object.entries(s.open).map(([mint, o]) => ({ mint, symbol: o.symbol, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs }));
+    const open = Object.entries(s.open).map(([mint, o]) => ({ mint, symbol: o.symbol, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs, markSol: o.markSol ?? null, markAt: o.markAt ?? null, outSoFar: o.outSoFar || 0 }));
     return {
       name: c.name, label: c.label || c.name, env: c.env || null, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
       equity: s.balance + open.reduce((a, o) => a + o.size, 0),
+      equityLive: s.balance + open.reduce((a, o) => a + (o.markSol != null ? o.markSol : o.size), 0),
       recent: (s.recent || []).slice(-60), closed: s.closed.map(x => ({ mint: x.mint, symbol: x.symbol, devPct: x.devPct, txs: x.txs, twitter: x.twitter, telegram: x.telegram, website: x.website, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol, reason: x.reason, rise: x.rise, peak: x.peak, route: x.route })),
       open
     };
   });
   return {
-    now: Date.now(), bootAt: BOOT, version: process.env.APP_VERSION || 'local', errors: ERR.length, eurPerSol: EUR_PER_SOL, goalEur: GOAL_EUR,
+    now: Date.now(), bootAt: BOOT, version: process.env.APP_VERSION || 'local', errors: ERR.length, eurPerSol: EUR_PER_SOL, eurAt: EUR_AT, eurSrc: EUR_SRC, goalEur: GOAL_EUR,
     cartera: { start: cart.start, startedAt: cart.startedAt, cash: cart.cash, equity: cartEquity(), fraction: SHARED_FRACTION, maxTrade: MAX_TRADE_SOL, open: Object.values(cart.open), closed: cart.closed.slice(-200), curve: cart.curve.slice(-1500), nClosed: cart.closed.length, wins: cart.closed.filter(x => x.ret > 0).length },
     copiers
   };

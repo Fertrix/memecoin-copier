@@ -237,6 +237,18 @@ async function onSellInner(ev, reason = 'espejo') {
   save();
 }
 
+// Valor EN TIEMPO REAL de las posiciones abiertas cada 15 s: cotización de venta de Jupiter de lo que nos queda (+ lo ya vendido en parciales)
+setInterval(async () => {
+  let ch = false;
+  for (const [mint, pos] of Object.entries(st.open)) {
+    if (pos.closing || !pos.tokensRaw) continue;
+    const q = await jupQuote(mint, WSOL, pos.tokensRaw);
+    if (!q || !st.open[mint]) continue;
+    pos.markSol = Math.max(0, Number(q.out) / 1e9 - PRIO); pos.markAt = Date.now(); ch = true;
+  }
+  if (ch) save();
+}, 15000);
+
 // Tope de tiempo: si la ballena no vende en MAX_HOLD_S, cerramos nosotros (no quedarnos atrapados en un token muerto)
 setInterval(() => { for (const [mint, pos] of Object.entries(st.open)) if (!pos.closing && Date.now() - pos.openedAt > MAX_HOLD_S * 1000) { log(`tiempo máximo ${mint.slice(0, 6)}: ${MAX_HOLD_S} s sin venta de la ballena → vendemos`); onSell({ mint }, 'tiempo'); } }, 5000);
 
