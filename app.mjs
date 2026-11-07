@@ -59,7 +59,11 @@ const CF = path.join(ROOT, 'data', 'cartera.json');
 const START = Number(process.env.START_SOL || 0.09);
 const SHARED_FRACTION = Number(process.env.SHARED_FRACTION || 0.25); // 25 %: con 184 trades nuevos la ventaja no se confirma; apostar fuerte hundiría la cuenta
 const MAX_TRADE_SOL = Number(process.env.MAX_TRADE_SOL || 1);
-const cart = fs.existsSync(CF) ? JSON.parse(fs.readFileSync(CF, 'utf8')) : { startedAt: Date.now(), start: START, cash: START, open: {}, closed: [], curve: [[Date.now(), START]] };
+// RESET_ID (en reset.json del repo): si cambia, la cartera vuelve a START_SOL. Así se puede reiniciar desde git sin tocar el servidor.
+const RESET_ID = (() => { try { return JSON.parse(fs.readFileSync(path.join(DIR, 'reset.json'), 'utf8')).cartera || ''; } catch { return ''; } })();
+const freshCart = () => ({ startedAt: Date.now(), start: START, cash: START, open: {}, closed: [], curve: [[Date.now(), START]], resetId: RESET_ID });
+let cart = fs.existsSync(CF) ? JSON.parse(fs.readFileSync(CF, 'utf8')) : freshCart();
+if (RESET_ID && cart.resetId !== RESET_ID) { console.log(`[cartera] REINICIO de la cartera a ${START} SOL (reset ${RESET_ID})`); cart = freshCart(); fs.writeFileSync(CF, JSON.stringify(cart)); }
 const saveCart = () => fs.writeFileSync(CF, JSON.stringify(cart));
 const cartEquity = () => cart.cash + Object.values(cart.open).reduce((a, o) => a + o.size, 0);
 function onEvent(name, m) {
