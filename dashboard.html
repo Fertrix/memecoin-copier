@@ -67,9 +67,9 @@
     <a class="tag" id="logs" href="#" target="_blank" style="color:var(--accent);text-decoration:none">registros</a>
   </header>
 
-  <nav><a href="#cartera">💰 Cartera</a><a href="#radar">📡 Radar</a><a href="#estrategias">🧠 Estrategias</a><a href="#trades-sec">📜 Trades</a><a href="#dias">📅 Por día</a></nav>
+  <nav><a href="#cartera">💰 Tus 20 €</a><a href="#copias">👥 Copias (0,09 c/u)</a><a href="#otras">🧪 Otras pruebas</a></nav>
   <section class="hero" id="cartera">
-    <div class="lbl">Cartera única — lo que harías con tu saldo real (solo las estrategias validadas la mueven)</div>
+    <div class="lbl">💰 TUS 20 € — simulación (paper) de lo que haría tu dinero real: una sola bolsa que copia a las 12 carteras</div>
     <div class="hero-top">
       <div><div class="huge" id="cEq">–</div><div class="sub" id="cEur"></div></div>
       <div><div class="lbl">Resultado</div><div class="mid" id="cRes">–</div></div>
@@ -84,17 +84,22 @@
 
   <div class="kpis" id="kpis"></div>
 
-  <h3 id="dias">📅 Por día</h3>
+  <h3 id="trades-sec">📜 Operaciones de tus 20 €</h3>
+  <div class="card tbl"><table id="trades"><thead><tr><th>Cuándo</th><th>Copiando a</th><th>Token</th><th>Metido</th><th>Resultado</th><th>Ganado</th><th>Duración</th></tr></thead><tbody></tbody></table></div>
+
+  <h3 id="dias">📅 Tus 20 € por día</h3>
   <div class="card tbl"><table id="days"><thead><tr><th>Día</th><th>Trades</th><th>Ganadores</th><th>Resultado del día</th><th>Saldo al cierre</th></tr></thead><tbody></tbody></table></div>
 
-  <h3 id="radar">📡 Radar en vivo — lanzamientos con dev fuerte que el bot ha revisado</h3>
-  <div class="card tbl"><table id="radarT"><thead><tr><th>Hora</th><th>Token</th><th>Dev compró</th><th>Txs a los 30 s</th><th>Redes</th><th>Decisión</th></tr></thead><tbody></tbody></table></div>
+  <h3 id="copias">👥 Prueba por cartera — cada una con su propio saldo de 0,09 SOL</h3>
+  <div class="sub" style="margin:-4px 0 10px">Sirve para saber qué carteras ganan copiándolas. No es tu dinero: son 12 cuentas de prueba separadas.</div>
+  <div class="card" id="copySum"></div>
+  <div class="grid" id="cardsCopy"></div>
 
-  <h3 id="estrategias">🧠 Estrategias</h3>
+  <h3 id="otras">🧪 Otras estrategias en medición (no tocan tu dinero)</h3>
   <div class="grid" id="cards"></div>
 
-  <h3 id="trades-sec">📜 Últimos trades de la cartera</h3>
-  <div class="card tbl"><table id="trades"><thead><tr><th>Cuándo</th><th>Estrategia</th><th>Token</th><th>Metido</th><th>Resultado</th><th>Ganado</th><th>Duración</th></tr></thead><tbody></tbody></table></div>
+  <h3 id="radar">📡 Radar — lanzamientos con dev fuerte revisados</h3>
+  <div class="card tbl"><table id="radarT"><thead><tr><th>Hora</th><th>Token</th><th>Dev compró</th><th>Txs a los 30 s</th><th>Redes</th><th>Decisión</th></tr></thead><tbody></tbody></table></div>
 
   <footer id="foot"></footer>
 </div>
@@ -182,7 +187,7 @@ async function load() {
   for (const x of C.closed) { const k = new Date(x.at).toLocaleDateString('es-ES'); run += x.pnl; const d = days[k] ||= { n: 0, w: 0, pnl: 0, end: 0 }; d.n++; if (x.ret > 0) d.w++; d.pnl += x.pnl; d.end = run; }
   document.querySelector('#days tbody').innerHTML = Object.entries(days).reverse().map(([k, d]) => `<tr><td>${k}</td><td>${d.n}</td><td>${d.w}</td><td class="${cls(d.pnl)}">${d.pnl >= 0 ? '+' : ''}${(d.pnl * E).toFixed(2)} €</td><td>${d.end.toFixed(4)} SOL (${eur(d.end, E)})</td></tr>`).join('') || '<tr><td colspan="5" class="sub">Aún sin trades cerrados</td></tr>';
   // Ballenas
-  document.getElementById('cards').innerHTML = s.copiers.filter(c => c.type !== 'rec').map(c => {
+  const card = c => {
     const n = c.closed.length, w = c.closed.filter(x => x.ret > 0).length;
     const m = n ? c.closed.reduce((a, x) => a + x.ret, 0) / n : null;
     const lg = c.closed.map(x => x.lagMs).filter(Boolean);
@@ -203,13 +208,20 @@ async function load() {
         <span>Retraso <b>${lg.length ? (lg.reduce((a, b) => a + b, 0) / lg.length / 1000).toFixed(1) + ' s' : '–'}</b></span></div>
       ${spark(c)}
       <div class="tbl"><table><thead><tr><th>Token</th><th>Resultado</th><th>Ganado</th><th>Ballena (SOL)</th><th>Máx.</th><th>Salida</th><th>Hace</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="sub">Esperando a que la ballena opere…</td></tr>'}</tbody></table></div></div>`;
-  }).join('');
+  };
+  const copies = s.copiers.filter(c => c.name.startsWith('cp_')), others = s.copiers.filter(c => c.type !== 'rec' && !c.name.startsWith('cp_'));
+  // las copias ordenadas por lo ganado
+  const gain = c => (c.equityLive ?? c.equity) - c.startSol;
+  document.getElementById('cardsCopy').innerHTML = [...copies].sort((a, b) => gain(b) - gain(a)).map(card).join('');
+  document.getElementById('cards').innerHTML = others.map(card).join('');
+  const tg = copies.reduce((a, c) => a + gain(c), 0), tn = copies.reduce((a, c) => a + c.closed.length, 0), tw = copies.reduce((a, c) => a + c.closed.filter(x => x.ret > 0).length, 0);
+  document.getElementById('copySum').innerHTML = `<div class="row money"><span>Las 12 juntas: <b class="${cls(tg)}">${solE(tg, E)}</b></span><span>Operaciones <b>${tn}</b></span><span>Ganadoras <b>${tn ? Math.round(tw / tn * 100) : 0} %</b></span><span>Ganando: <b>${copies.filter(c => gain(c) > 0.00005).map(c => esc(c.label.replace(/^Copia /, '').replace(/ ·.*$/, ''))).join(', ') || '–'}</b></span><span>Perdiendo: <b>${copies.filter(c => gain(c) < -0.00005).map(c => esc(c.label.replace(/^Copia /, '').replace(/ ·.*$/, ''))).join(', ') || '–'}</b></span></div>`;
   // Radar
   const rec = s.copiers.flatMap(c => c.recent || []).sort((a, b) => b.at - a.at).slice(0, 40);
   document.querySelector('#radarT tbody').innerHTML = rec.map(x => `<tr><td>${hhmm(x.at)}</td><td>${tokenCell(x.mint, x.symbol)} <span class="sub">${esc((x.name || '').slice(0, 28))}</span></td><td>${x.devPct} %</td><td>${x.txs}</td><td>${socials(x)}</td><td class="${x.decision === 'COMPRA' ? 'dec-buy' : 'sub'}">${x.decision === 'COMPRA' ? '🟡 COMPRA' : esc(x.decision)}</td></tr>`).join('') || '<tr><td colspan="6" class="sub">Esperando lanzamientos con dev fuerte…</td></tr>';
   // Últimos trades
-  document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${esc(o.name)}</td><td>${tokenCell(o.mint, o.symbol)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),
-    ...C.closed.slice(-25).reverse().map(x => `<tr><td>${hhmm(x.at)}</td><td>${esc(x.name)}</td><td>${tokenCell(x.mint, x.symbol)}</td><td>${x.size.toFixed(4)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="${cls(x.pnl)}">${solE(x.pnl, E)}</td><td>${dur(x.holdS)}</td></tr>`)].join('') || '<tr><td colspan="7" class="sub">Aún sin trades</td></tr>';
+  document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${esc(o.name.replace(/^cp_/, ''))}</td><td>${tokenCell(o.mint, o.symbol)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),
+    ...C.closed.slice(-25).reverse().map(x => `<tr><td>${hhmm(x.at)}</td><td>${esc(x.name.replace(/^cp_/, ''))}</td><td>${tokenCell(x.mint, x.symbol)}</td><td>${x.size.toFixed(4)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="${cls(x.pnl)}">${solE(x.pnl, E)}</td><td>${dur(x.holdS)}</td></tr>`)].join('') || '<tr><td colspan="7" class="sub">Aún sin trades</td></tr>';
   document.getElementById('upd').textContent = 'en vivo · ' + new Date(s.now).toLocaleTimeString('es-ES');
   if (s.auth) document.getElementById('logout').style.display = '';
   document.getElementById('uptime').textContent = 'encendido hace ' + ago(s.bootAt);
