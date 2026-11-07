@@ -1,19 +1,5 @@
 [
   {
-    "name": "649ot",
-    "label": "649ot (Multi-Bagger 2) · solo medición",
-    "wallet": "649ot18fccD6Mc9V4aHWTdoSVCuqAEtg9aWuxBA9cRoU",
-    "ruleMin": 1,
-    "ruleMax": 4,
-    "maxRise": 0.03,
-    "fraction": 0.25,
-    "startSol": 0.09,
-    "expected": -0.017,
-    "cartera": false,
-    "trail": 0.15,
-    "trailArm": 0.4
-  },
-  {
     "name": "dev2",
     "label": "Dev fuerte + token tranquilo (v2: contador en vivo)",
     "type": "dev",
@@ -49,27 +35,5 @@
     "cartera": false,
     "minPremium": -0.35,
     "slNet": 0.15
-  },
-  {
-    "name": "clukz",
-    "label": "clukz (KOL) · solo medición",
-    "wallet": "G6fUXjMKPJzCY1rveAE6Qm7wy5U3vZgKDJmN1VPAdiZC",
-    "ruleMin": 0,
-    "ruleMax": 1000000000,
-    "fraction": 0.25,
-    "startSol": 0.09,
-    "expected": 0.2,
-    "cartera": false
-  },
-  {
-    "name": "wugi",
-    "label": "Wugi (KOL) · solo medición",
-    "wallet": "862TYSvRYoiHAK3F3WwTRYAfuGiQaGdxedN9AGvRGWo2",
-    "ruleMin": 0,
-    "ruleMax": 1000000000,
-    "fraction": 0.25,
-    "startSol": 0.09,
-    "expected": 0.055,
-    "cartera": false
   }
 ]
