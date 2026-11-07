@@ -128,7 +128,7 @@ async function load() {
   lineChart(document.getElementById('chart'), C.curve, C.start);
   // KPIs
   const all = s.copiers.flatMap(c => c.closed);
-  const lag = s.copiers.filter(c => c.name !== 'grad').flatMap(c => c.closed).map(x => x.lagMs).filter(Boolean); // el bot de graduaciones espera 60 s a propósito
+  const lag = s.copiers.filter(c => c.type !== 'grad' && c.type !== 'dev').flatMap(c => c.closed).map(x => x.lagMs).filter(Boolean); // el bot de graduaciones espera 60 s a propósito
   const credits = s.copiers.reduce((a, c) => a + (c.credits || 0), 0);
   const best = C.closed.length ? Math.max(...C.closed.map(x => x.ret)) : null, worst = C.closed.length ? Math.min(...C.closed.map(x => x.ret)) : null;
   const avg = C.closed.length ? C.closed.reduce((a, x) => a + x.ret, 0) / C.closed.length : null;
@@ -149,7 +149,7 @@ async function load() {
     const n = c.closed.length, w = c.closed.filter(x => x.ret > 0).length;
     const m = n ? c.closed.reduce((a, x) => a + x.ret, 0) / n : null;
     const lg = c.closed.map(x => x.lagMs).filter(Boolean);
-    const rule = c.type === 'grad' ? `compra entre 60 y 120 s tras graduarse si el precio está entre ${Math.round((c.minPremium ?? -0.35) * 100)} % y +${Math.round((c.maxPremium ?? 0.05) * 100)} % de la referencia · TP +${Math.round((c.tpNet ?? 0.12) * 100)} % · SL −${Math.round((c.slNet ?? 0.15) * 100)} % · máx ${c.holdS ?? 180} s` + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>') : (c.rule[1] < 1e6 ? `copia compras de ${c.rule[0]}–${c.rule[1]} SOL` : 'copia todas sus compras') + (c.maxRise != null && c.maxRise < 1 ? ` · solo si el precio subió ≤ ${Math.round(c.maxRise * 100)} % (llegar antes que los bots)` : '') + (c.trail ? ` · trailing ${Math.round(c.trail*100)} % tras +${Math.round(c.trailArm*100)} %` : '') + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>');
+    const rule = c.type === 'dev' ? 'compra si el dev compró ≥ 8 % al lanzar y a los 30 s hay menos de 9 transacciones · TP +100 % · SL −25 % · máx 100 s · <b>en la cartera única</b>' : c.type === 'grad' ? `compra entre 60 y 120 s tras graduarse si el precio está entre ${Math.round((c.minPremium ?? -0.35) * 100)} % y +${Math.round((c.maxPremium ?? 0.05) * 100)} % de la referencia · TP +${Math.round((c.tpNet ?? 0.12) * 100)} % · SL −${Math.round((c.slNet ?? 0.15) * 100)} % · máx ${c.holdS ?? 180} s` + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>') : (c.rule[1] < 1e6 ? `copia compras de ${c.rule[0]}–${c.rule[1]} SOL` : 'copia todas sus compras') + (c.maxRise != null && c.maxRise < 1 ? ` · solo si el precio subió ≤ ${Math.round(c.maxRise * 100)} % (llegar antes que los bots)` : '') + (c.trail ? ` · trailing ${Math.round(c.trail*100)} % tras +${Math.round(c.trailArm*100)} %` : '') + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>');
     let verdict = '<span class="pill neutral">pocos datos</span>';
     if (n >= 8 && c.expected != null) verdict = m >= c.expected * 0.5 ? '<span class="pill ok">aguanta el histórico</span>' : m > 0 ? '<span class="pill neutral">por debajo del histórico</span>' : '<span class="pill bad">perdiendo en vivo</span>';
     const rows = [...c.open.map(o => `<tr><td>${o.mint.slice(0, 6)}</td><td class="sub">abierta</td><td>${o.whaleSol?.toFixed(2) ?? '–'}</td><td></td><td></td><td></td><td>${ago(o.openedAt)}</td></tr>`),
