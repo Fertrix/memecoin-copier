@@ -116,14 +116,39 @@ function start(c) {
   if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), MIN_PREMIUM: String(c.minPremium ?? -0.35), SL_NET: String(c.slNet ?? 0.15), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
   if (c.env) for (const [k, v] of Object.entries(c.env)) env[k] = String(v);
   if (c.type === 'dev' || c.type === 'rec') env.FEED = 'ipc';
+  if (!c.type && c.wallet) env.WS_MODE = 'ipc'; // las copias reciben los avisos del WebSocket compartido
   const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : c.type === 'dev' ? 'devbot.mjs' : c.type === 'rec' ? 'recorder.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
   KIDS.add(ch);
   ch.on('message', m => { try { onEvent(c.name, m); } catch (e) { console.error('evento', e); } });
   if (c.type === 'dev' || c.type === 'rec') FEED_KIDS.add(ch);
+  if (!c.type && c.wallet) { COPY_KIDS.set(c.wallet, ch); copySub(c.wallet); }
   ch.on('exit', code => { KIDS.delete(ch); FEED_KIDS.delete(ch); console.log(`[${c.name}] se ha parado (código ${code}); relanzando en 10 s`); setTimeout(() => start(c), 10000); });
 }
+// ---------- WebSocket COMPARTIDO para las copias ----------
+// Una sola conexión con todas las carteras suscritas (logsSubscribe 'processed'); cada aviso se reenvía a su copia.
+// Con HELIUS_API_KEY usa el WebSocket de Helius (gratis: 5 conexiones x 1.000 suscripciones, ~20 créditos/MB): mucho
+// más rápido y fiable que el público. Sin clave, el oficial. La clave nunca se escribe en los registros.
+const COPY_KIDS = new Map();
+let cws = null, cwsReady = false, cwsId = 1000;
+const cwsReq = new Map(), cwsSub = new Map(), cwsWallet = new Map();
+function copySub(w) { if (!cwsReady) return; const id = ++cwsId; cwsReq.set(id, w); try { cws.send(JSON.stringify({ jsonrpc: '2.0', id, method: 'logsSubscribe', params: [{ mentions: [w] }, { commitment: 'processed' }] })); } catch {} }
+function copyWs() {
+  const helius = !!process.env.HELIUS_API_KEY;
+  cws = new WebSocket(helius ? `wss://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` : 'wss://api.mainnet-beta.solana.com');
+  cwsReady = false; cwsSub.clear(); cwsReq.clear(); cwsWallet.clear();
+  cws.onopen = () => { cwsReady = true; console.log(`[copias] WebSocket compartido conectado (${helius ? 'Helius' : 'oficial'}), ${COPY_KIDS.size} carteras`); for (const w of COPY_KIDS.keys()) copySub(w); };
+  cws.onmessage = e => {
+    let j; try { j = JSON.parse(String(e.data)); } catch { return; }
+    if (j.id && cwsReq.has(j.id)) { const w = cwsReq.get(j.id); cwsReq.delete(j.id); if (j.result != null) { cwsSub.set(j.result, w); cwsWallet.set(w, j.result); } else console.log(`[copias] suscripción rechazada para ${w.slice(0, 6)}`); return; }
+    const w = cwsSub.get(j?.params?.subscription); if (!w) return;
+    const ch = COPY_KIDS.get(w); try { ch?.send({ type: 'logs', value: j.params.result.value, slot: j.params.result.context?.slot || 0, at: Date.now() }); } catch {}
+  };
+  cws.onclose = () => { cwsReady = false; console.log('[copias] WebSocket compartido cerrado, reconectando'); setTimeout(copyWs, 2000); };
+  cws.onerror = () => { try { cws.close(); } catch {} };
+}
+setInterval(() => { try { if (cwsReady) cws.send('{"jsonrpc":"2.0","id":7,"method":"getHealth"}'); } catch {} }, 30000);
 // Una sola conexión a PumpPortal (lanzamientos) repartida a todos los bots que la necesitan
 const FEED_KIDS = new Set();
 function feed() {
@@ -135,6 +160,7 @@ function feed() {
 }
 if (COPIERS.some(c => c.type === 'dev' || c.type === 'rec')) feed();
 for (const c of COPIERS) start(c);
+if (COPIERS.some(c => !c.type && c.wallet)) copyWs();
 
 // ---------- Estado ----------
 function readState(c) { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'data', `livecopy_${c.name}.json`), 'utf8')); } catch { return null; } }

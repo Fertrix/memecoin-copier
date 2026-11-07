@@ -347,16 +347,18 @@ function fastPath(v, slot) {
 // Suscripción en tiempo real: Solana avisa en cuanto una tx menciona a la wallet (sin esperar al sondeo)
 let wsAlive = false, wsCur = null;
 setInterval(() => { try { if (wsCur?.readyState === 1) wsCur.send(JSON.stringify({ jsonrpc: '2.0', id: 99, method: 'getHealth' })); } catch {} }, 30000);
+function onLogs(v, slot) {
+  if (!v?.signature || v.err || seen.has(v.signature)) return;
+  if (!fastPath(v, slot)) processSig(v.signature, null, 'websocket');
+}
+// WS_MODE=ipc: los avisos llegan del WebSocket compartido de app.mjs (una conexión para todas las copias)
+if (process.env.WS_MODE === 'ipc') process.on('message', m => { if (m?.type === 'logs') { wsAlive = true; try { onLogs(m.value, m.slot); } catch {} } });
 function startWs() {
+  if (process.env.WS_MODE === 'ipc') { wsAlive = true; log('avisos por el WebSocket compartido'); return; }
   const ws = new WebSocket(WS_URL); wsCur = ws;
   ws.onopen = () => { wsAlive = true; ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [W] }, { commitment: 'processed' }] })); log('WebSocket conectado: detección en tiempo real'); };
   ws.onmessage = m => {
-    try {
-      const j = JSON.parse(String(m.data));
-      const v = j?.params?.result?.value;
-      if (!v?.signature || v.err || seen.has(v.signature)) return;
-      if (!fastPath(v, j.params.result.context?.slot || 0)) processSig(v.signature, null, 'websocket');
-    } catch {}
+    try { const j = JSON.parse(String(m.data)); const v = j?.params?.result?.value; if (v) onLogs(v, j.params.result.context?.slot || 0); } catch {}
   };
   const retry = () => { wsAlive = false; setTimeout(startWs, 3000); };
   ws.onclose = retry; ws.onerror = () => { try { ws.close(); } catch {} };
