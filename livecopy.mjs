@@ -89,7 +89,7 @@ function parse(tx) {
     const ci = keys.indexOf(pb.owner);
     if (ci >= 0) refVSol = 30 + m.postBalances[ci] / 1e9 - 0.00149;
   }
-  return { mint, side, sol: Math.abs(solCh), pool, refVSol, remaining: amt(post, mint, W) };
+  return { mint, side, sol: Math.abs(solCh), pool, refVSol, remaining: amt(post, mint, W), moved: Math.abs(d) };
 }
 
 // Cotización REAL ejecutable vía Jupiter (cualquier launchpad/AMM, comisiones del pool incluidas). Devuelve outAmount (unidades raw).
@@ -152,23 +152,39 @@ async function onBuyPool(ev, sig, txTime) {
   log(`COMPRA copiada ${ev.mint.slice(0, 6)} (${ev.pool.kind}) | ballena ${ev.sol.toFixed(2)} SOL | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s`);
   save();
 }
+// Venta PROPORCIONAL: si la ballena vende una parte (p. ej. 30 % de lo que tiene), vendemos el mismo 30 % de lo nuestro.
+// Con PROPORTIONAL=0 se vuelve al modo antiguo (todo en su primera venta).
+const PROPORTIONAL = process.env.PROPORTIONAL !== '0';
+const MAX_HOLD_S = Number(process.env.MAX_HOLD_S ?? 1200);
 async function onSell(ev, reason = 'espejo') {
   const pos = st.open[ev.mint]; if (!pos || pos.closing) return;
+  let f = 1;
+  if (PROPORTIONAL && reason === 'espejo' && ev.moved > 0 && ev.remaining != null) f = Math.min(1, ev.moved / (ev.moved + ev.remaining));
+  if (f > 0.95) f = 1;
   pos.closing = true;
   await sleep(LAT);
   let out;
   if (pos.tokensRaw) {
-    let q = await jupQuote(ev.mint, WSOL, pos.tokensRaw);
-    for (let i = 0; !q && i < 4; i++) { await sleep(1500); q = await jupQuote(ev.mint, WSOL, pos.tokensRaw); }
-    if (!q) { log(`venta ${ev.mint.slice(0, 6)}: sin cotización de salida, posición marcada como pérdida total REAL (sin liquidez)`); }
+    const part = f >= 1 ? BigInt(pos.tokensRaw) : BigInt(pos.tokensRaw) * BigInt(Math.round(f * 1e6)) / 1000000n;
+    let q = await jupQuote(ev.mint, WSOL, part.toString());
+    for (let i = 0; !q && i < 4; i++) { await sleep(1500); q = await jupQuote(ev.mint, WSOL, part.toString()); }
+    if (!q) { log(`venta ${ev.mint.slice(0, 6)}: sin cotización de salida, ${f >= 1 ? 'posición marcada como pérdida total REAL (sin liquidez)' : 'venta parcial omitida'}`); if (f < 1) { pos.closing = false; return; } }
     out = q ? Math.max(0, Number(q.out) / 1e9 - PRIO) : 0;
+    if (f < 1) pos.tokensRaw = (BigInt(pos.tokensRaw) - part).toString();
   } else {
     const p = await poolPrice(pos.pool);
     if (!p) { pos.closing = false; log(`venta ${ev.mint.slice(0, 6)}: no pude leer el pool, se reintentará`); return; }
-    const price = p.price;
-    out = Math.max(0, (pos.tokens * price * (1 - (p ? pos.size / p.solR : 0))) * (1 - FEE) - PRIO);
+    const price = p.price, tk = pos.tokens * f;
+    out = Math.max(0, (tk * price * (1 - (p ? pos.size * f / p.solR : 0))) * (1 - FEE) - PRIO);
+    if (f < 1) pos.tokens -= tk;
   }
   st.balance += out;
+  if (f < 1) {
+    pos.outSoFar = (pos.outSoFar || 0) + out; pos.partials = (pos.partials || 0) + 1; pos.closing = false;
+    log(`VENTA PARCIAL ${ev.mint.slice(0, 6)}: la ballena vendió ${(f * 100).toFixed(0)}% de lo suyo → vendemos ${(f * 100).toFixed(0)}% (+${out.toFixed(4)} SOL)`);
+    save(); return;
+  }
+  out += pos.outSoFar || 0;
   const ret = out / pos.size - 1;
   st.closed.push({ mint: ev.mint, ret, size: pos.size, out, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: pos.whaleSol, kind: pos.pool.kind, poolSol: pos.poolSol, rule14: pos.whaleSol >= 1 && pos.whaleSol < 4, reason, peak: pos.peak ?? null, rise: pos.rise ?? null, route: pos.route ?? null });
   emit({ type: 'sell', mint: ev.mint, ret, holdS: (Date.now() - pos.openedAt) / 1000 });
@@ -178,6 +194,9 @@ async function onSell(ev, reason = 'espejo') {
   log(`VENTA (${reason}) ${ev.mint.slice(0, 6)} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)}% | equity ${eq.toFixed(4)} SOL (x${(eq / START_SOL).toFixed(2)}) | ${n} cerrados, ${w} ganadores | créditos ${st.credits}`);
   save();
 }
+
+// Tope de tiempo: si la ballena no vende en MAX_HOLD_S, cerramos nosotros (no quedarnos atrapados en un token muerto)
+setInterval(() => { for (const [mint, pos] of Object.entries(st.open)) if (!pos.closing && Date.now() - pos.openedAt > MAX_HOLD_S * 1000) { log(`tiempo máximo ${mint.slice(0, 6)}: ${MAX_HOLD_S} s sin venta de la ballena → vendemos`); onSell({ mint }, 'tiempo'); } }, 5000);
 
 // Trailing stop: si la posición llega a +TRAIL_ARM y luego cae TRAIL desde el máximo, vendemos sin esperar a la ballena.
 const TRAIL = Number(process.env.TRAIL ?? 0), TRAIL_ARM = Number(process.env.TRAIL_ARM ?? 0.4);

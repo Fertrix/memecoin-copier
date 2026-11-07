@@ -14,7 +14,7 @@
       "DEV_PCT": 8,
       "DECIDE_S": 30,
       "MAX_TXS": 9,
-      "TP": 1.0,
+      "TP": 1,
       "SL": 0.25,
       "HOLD_S": 100
     }
@@ -34,7 +34,7 @@
       "DEV_PCT": 12,
       "DECIDE_S": 30,
       "MAX_TXS": 9,
-      "TP": 1.0,
+      "TP": 1,
       "SL": 0.25,
       "HOLD_S": 100
     }
@@ -110,5 +110,185 @@
     "fraction": 0,
     "startSol": 0.09,
     "cartera": false
+  },
+  {
+    "name": "cp_8Zncd",
+    "label": "Copia 8Zncdu (GLM) · medición",
+    "wallet": "8ZncduKJigXRCwfZRdKdPgZRU2vhLnhAtcd5HqTutY7f",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.27,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_9fR8g",
+    "label": "Copia 9fR8ge (Bot_Memecoins) · medición",
+    "wallet": "9fR8gerfvGSycFGbK2VY1PFrPuU9jS6QM47S974yTUHC",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.243,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_4cgRq",
+    "label": "Copia 4cgRqM (GLM) · medición",
+    "wallet": "4cgRqMDwBMYy74dCWzm7c462EJ7m6MqH2EQaHBo2cvo1",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.169,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_9ecRd",
+    "label": "Copia 9ecRdq (Bot_Memecoins) · medición",
+    "wallet": "9ecRdqNCBxwReiY2pxtnLeayeBzE1CrSSmKKJJGdmsaJ",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.139,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_Huftd",
+    "label": "Copia HuftdJ (GLM) · medición",
+    "wallet": "HuftdJ54bDaerBTLd4gD5AkBReS2eqmyqZJCWoeX2pfo",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.093,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_GJA1H",
+    "label": "Copia GJA1HE (Bot_Memecoins) · medición",
+    "wallet": "GJA1HEbxGnqBhBifH9uQauzXSB53to5rhDrzmKxhSU65",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.087,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_4opeQ",
+    "label": "Copia 4opeQ1 (Bot_Memecoins) · medición",
+    "wallet": "4opeQ1PbEbeJeejupBDi4cHzuDnYsHnyWJiw7JErfXGd",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.049,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_HbCxe",
+    "label": "Copia HbCxe8 (Bot_Memecoins) · medición",
+    "wallet": "HbCxe8yWQJWnK3f3FX4oohgm87FZuPYD4Ydszqxgkwft",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.024,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_GM7Hr",
+    "label": "Copia GM7Hrz (Bot_Memecoins) · medición",
+    "wallet": "GM7Hrz2bDq33ezMtL6KGidSWZXMWgZ6qBuugkb5H8NvN",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.017,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_D9gQ6",
+    "label": "Copia D9gQ6R (Bot_Memecoins) · medición",
+    "wallet": "D9gQ6RhKEpnobPBUdWY5bPQt2p3zGk3iVz6ChpUi2ArA",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.016,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_C4eNL",
+    "label": "Copia C4eNLx (GLM) · medición",
+    "wallet": "C4eNLxxC7XLUivghMi35YUeSfvACgnvKB18115uPUqjg",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.013,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
+  },
+  {
+    "name": "cp_5B79f",
+    "label": "Copia 5B79fM (Bot_Memecoins) · medición",
+    "wallet": "5B79fMkcFeRTiwm7ehsZsFiKsC7m7n1Bgv9yLxPp9q2X",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.005,
+    "cartera": false,
+    "env": {
+      "PROPORTIONAL": "1",
+      "MAX_HOLD_S": "1200"
+    }
   }
 ]
