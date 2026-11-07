@@ -114,6 +114,7 @@ process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown); process.on('dis
 function start(c) {
   const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), MAX_RISE: String(c.maxRise ?? 1), TRAIL: String(c.trail ?? 0), TRAIL_ARM: String(c.trailArm ?? 0.4), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
   if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), MIN_PREMIUM: String(c.minPremium ?? -0.35), SL_NET: String(c.slNet ?? 0.15), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
+  env.HELIUS_FALLBACK = process.env.HELIUS_FALLBACK_KIDS === '1' ? '1' : '0'; // por defecto ningún bot gasta créditos de Helius
   if (c.env) for (const [k, v] of Object.entries(c.env)) env[k] = String(v);
   if (c.type === 'dev' || c.type === 'rec') env.FEED = 'ipc';
   if (!c.type && c.wallet) env.WS_MODE = 'ipc'; // las copias reciben los avisos del WebSocket compartido
@@ -128,14 +129,15 @@ function start(c) {
 }
 // ---------- WebSocket COMPARTIDO para las copias ----------
 // Una sola conexión con todas las carteras suscritas (logsSubscribe 'processed'); cada aviso se reenvía a su copia.
-// Con HELIUS_API_KEY usa el WebSocket de Helius (gratis: 5 conexiones x 1.000 suscripciones, ~20 créditos/MB): mucho
-// más rápido y fiable que el público. Sin clave, el oficial. La clave nunca se escribe en los registros.
+// Usa el WebSocket oficial gratuito. Helius solo con HELIUS_COPY_WS=1 (medido: ~3.600 créditos/día con 12 carteras),
+// apagado por defecto para no arriesgar la cuota mensual. La clave nunca se escribe en los registros.
 const COPY_KIDS = new Map();
 let cws = null, cwsReady = false, cwsId = 1000;
 const cwsReq = new Map(), cwsSub = new Map(), cwsWallet = new Map();
 function copySub(w) { if (!cwsReady) return; const id = ++cwsId; cwsReq.set(id, w); try { cws.send(JSON.stringify({ jsonrpc: '2.0', id, method: 'logsSubscribe', params: [{ mentions: [w] }, { commitment: 'processed' }] })); } catch {} }
 function copyWs() {
-  const helius = !!process.env.HELIUS_API_KEY;
+  // Helius solo si se pide expresamente (HELIUS_COPY_WS=1): si se agota la cuota gratuita, se pierde todo el mes
+  const helius = !!process.env.HELIUS_API_KEY && process.env.HELIUS_COPY_WS === '1';
   cws = new WebSocket(helius ? `wss://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` : 'wss://api.mainnet-beta.solana.com');
   cwsReady = false; cwsSub.clear(); cwsReq.clear(); cwsWallet.clear();
   cws.onopen = () => { cwsReady = true; console.log(`[copias] WebSocket compartido conectado (${helius ? 'Helius' : 'oficial'}), ${COPY_KIDS.size} carteras`); for (const w of COPY_KIDS.keys()) copySub(w); };
