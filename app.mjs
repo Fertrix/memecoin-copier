@@ -94,7 +94,8 @@ process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown); process.on('dis
 function start(c) {
   const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), MAX_RISE: String(c.maxRise ?? 1), TRAIL: String(c.trail ?? 0), TRAIL_ARM: String(c.trailArm ?? 0.4), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
   if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), MIN_PREMIUM: String(c.minPremium ?? -0.35), SL_NET: String(c.slNet ?? 0.15), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
-  const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+  if (c.env) for (const [k, v] of Object.entries(c.env)) env[k] = String(v);
+  const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : c.type === 'dev' ? 'devbot.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
   KIDS.add(ch);

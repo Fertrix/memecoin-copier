@@ -14,6 +14,26 @@
     "trailArm": 0.4
   },
   {
+    "name": "dev",
+    "label": "Dev fuerte + token tranquilo",
+    "type": "dev",
+    "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.08,
+    "cartera": true,
+    "env": {
+      "DEV_PCT": 8,
+      "DECIDE_S": 30,
+      "MAX_TXS": 9,
+      "TP": 1.0,
+      "SL": 0.25,
+      "HOLD_S": 100
+    }
+  },
+  {
     "name": "grad",
     "label": "Graduaciones (BOOST)",
     "type": "grad",
