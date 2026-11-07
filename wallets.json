@@ -14,8 +14,8 @@
     "trailArm": 0.4
   },
   {
-    "name": "dev",
-    "label": "Dev fuerte + token tranquilo",
+    "name": "dev2",
+    "label": "Dev fuerte + token tranquilo (v2: contador en vivo)",
     "type": "dev",
     "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
     "ruleMin": 0,

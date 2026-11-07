@@ -55,6 +55,28 @@ function sellValue(c, pos) {
   return Math.max(0, out / 1e9 * (1 - FEE) - PRIO);
 }
 
+// ---------- Contador en vivo de transacciones por curva (WebSocket público, gratis) ----------
+const watchers = new Map(); // curva -> Set(firmas)
+const subIds = new Map(), reqToCurve = new Map(), subToCurve = new Map();
+let lws = null, lwsReady = false, reqId = 100;
+function lwsConnect() {
+  lws = new WebSocket(process.env.WS_URL || 'wss://api.mainnet-beta.solana.com'); lwsReady = false;
+  lws.onopen = () => { lwsReady = true; subIds.clear(); subToCurve.clear(); for (const c of watchers.keys()) lwsSub(c); };
+  lws.onmessage = e => { try {
+    const j = JSON.parse(String(e.data));
+    if (j.id && reqToCurve.has(j.id)) { const c = reqToCurve.get(j.id); reqToCurve.delete(j.id); if (watchers.has(c)) { subIds.set(c, j.result); subToCurve.set(j.result, c); } else lws.send(JSON.stringify({ jsonrpc: '2.0', id: ++reqId, method: 'logsUnsubscribe', params: [j.result] })); return; }
+    const v = j?.params?.result?.value; const c = subToCurve.get(j?.params?.subscription);
+    if (v?.signature && c && watchers.has(c) && !v.err) watchers.get(c).add(v.signature);
+  } catch {} };
+  lws.onclose = () => { lwsReady = false; setTimeout(lwsConnect, 2000); };
+  lws.onerror = () => { try { lws.close(); } catch {} };
+}
+function lwsSub(c) { if (!lwsReady) return; const id = ++reqId; reqToCurve.set(id, c); lws.send(JSON.stringify({ jsonrpc: '2.0', id, method: 'logsSubscribe', params: [{ mentions: [c] }, { commitment: 'processed' }] })); }
+function watchCurve(c) { if (watchers.has(c)) return; watchers.set(c, new Set()); lwsSub(c); }
+function unwatchCurve(c) { watchers.delete(c); const sid = subIds.get(c); subIds.delete(c); if (sid != null) { subToCurve.delete(sid); try { lws.send(JSON.stringify({ jsonrpc: '2.0', id: ++reqId, method: 'logsUnsubscribe', params: [sid] })); } catch {} } }
+lwsConnect();
+setInterval(() => { try { if (lwsReady) lws.send('{"jsonrpc":"2.0","id":9,"method":"getHealth"}'); } catch {} }, 30000);
+
 const pending = new Map();
 async function onCreate(m) {
   const devPct = (Number(m.initialBuy) || 0) / 1e9 * 100;
@@ -66,13 +88,19 @@ async function onCreate(m) {
   if (pending.has(m.mint) || st.open[m.mint]) return;
   bump('devFuerte');
   const seenAt = Date.now(); pending.set(m.mint, seenAt);
+  watchCurve(m.bondingCurveKey);
   log(`lanzamiento ${m.symbol || m.mint.slice(0, 6)}: el dev compró ${devPct.toFixed(1)} % — reviso a los ${DECIDE_S} s`);
   await sleep(Math.max(0, seenAt - 1000 + DECIDE_S * 1000 - Date.now()));
   // ¿Cuántas transacciones ha tenido la curva? (sin contar la de creación)
-  const sigs = await rpc('getSignaturesForAddress', [m.bondingCurveKey, { limit: 30, commitment: 'confirmed' }]);
+  // El índice de firmas de los RPC públicos va con retraso, así que se une con lo visto en vivo por WebSocket desde el lanzamiento.
+  const sigs = await rpc('getSignaturesForAddress', [m.bondingCurveKey, { limit: 50, commitment: 'confirmed' }]);
+  const live = watchers.get(m.bondingCurveKey); unwatchCurve(m.bondingCurveKey);
   pending.delete(m.mint);
-  if (!sigs) { bump('sinDatos'); return; }
-  const txs = sigs.filter(s => !s.err && s.signature !== m.signature).length;
+  const all = new Set(live || []);
+  for (const s of sigs || []) if (!s.err) all.add(s.signature);
+  all.delete(m.signature);
+  if (!sigs && !live) { bump('sinDatos'); return; }
+  const txs = all.size;
   if (txs >= MAX_TXS) { bump('demasiadaActividad'); log(`${m.symbol || m.mint.slice(0, 6)}: ${txs} transacciones a los ${DECIDE_S} s (límite < ${MAX_TXS}) — no compro`); save(); return; }
   const c = await curve(m.bondingCurveKey);
   if (!c || c.complete) return;
