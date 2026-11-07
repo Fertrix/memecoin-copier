@@ -99,7 +99,10 @@ function markRug(creator, initialBuy, why) {
   st.rug.prints = st.rug.prints.filter(([t]) => Date.now() - t < 6 * 3600e3).slice(-500);
   log(`anti-rug: apunto ${why} (creador ${creator?.slice(0, 6)}, huella ${printOf(initialBuy)})`);
 }
+// Huellas de fábricas de rugs vistas en vivo (cantidad exacta de compra del dev): 17,7 % → NapMode, ShiftLoaf, MeowWalk, WrongBed, GuardCat (5/5 perdedores)
+const PRINT_BLACKLIST = new Set((process.env.PRINT_BLACKLIST || '1770').split(',').filter(Boolean));
 function rugReason(m) {
+  if (PRINT_BLACKLIST.has(printOf(m.initialBuy))) return 'huella de fábrica de rugs conocida';
   if (st.rug.creators[m.traderPublicKey]) return 'creador con rug previo';
   const p = printOf(m.initialBuy), n = st.rug.prints.filter(([t, x]) => x === p && Date.now() - t < 3 * 3600e3).length;
   if (n >= 2) return `fábrica de rugs (misma compra exacta, ${n} rugs en 3 h)`;
@@ -171,7 +174,7 @@ async function watch(mint) {
       if (pos.path.length < 240 && (HOLD_S <= 120 || Math.round((Date.now() - pos.openedAt) / 1000) % 5 === 0)) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
       if (TP > 0 && r >= TP) { reason = 'TP'; back = v; break; }
       if (TRAIL > 0 && pos.peak >= TRAIL_ARM && (1 + r) <= (1 + pos.peak) * (1 - TRAIL)) { reason = 'trailing'; back = v; break; }
-      if (r <= -SL) { reason = 'SL'; back = v; if (Date.now() - pos.openedAt < 30000) markRug(pos.creator, pos.initialBuy, 'desplome en < 30 s tras comprar'); break; }
+      if (r <= -SL) { reason = 'SL'; back = v; markRug(pos.creator, pos.initialBuy, 'stop loss'); break; }
     }
     await sleep(1000);
   }
