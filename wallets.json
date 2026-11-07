@@ -275,14 +275,14 @@
   },
   {
     "name": "cp_D9gQ6",
-    "label": "Copia 🍘 w (flipper 4 s) · D9gQ6R",
+    "label": "Copia 🍘 w (flipper 4 s) · solo prueba · D9gQ6R",
     "wallet": "D9gQ6RhKEpnobPBUdWY5bPQt2p3zGk3iVz6ChpUi2ArA",
     "ruleMin": 0,
     "ruleMax": 1000000000,
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.016,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -293,14 +293,14 @@
   },
   {
     "name": "cp_C4eNL",
-    "label": "Copia C4eNLx (flipper 4 s) · C4eNLx",
+    "label": "Copia C4eNLx (flipper 4 s) · solo prueba · C4eNLx",
     "wallet": "C4eNLxxC7XLUivghMi35YUeSfvACgnvKB18115uPUqjg",
     "ruleMin": 0,
     "ruleMax": 1000000000,
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.013,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
