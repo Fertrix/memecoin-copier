@@ -88,6 +88,22 @@ async function meta(uri) {
 st.recent ||= [];
 function radar(x) { st.recent.push({ at: Date.now(), ...x }); if (st.recent.length > 80) st.recent.splice(0, st.recent.length - 80); }
 
+// ---------- Anti-rug: creadores y "huellas" de fábrica (cantidad exacta comprada por el dev) que ya hicieron rug ----------
+st.rug ||= { creators: {}, prints: [] };
+const printOf = initialBuy => String(Math.round(Number(initialBuy) / 1e5)); // misma cantidad exacta = misma fábrica
+function markRug(creator, initialBuy, why) {
+  if (creator) st.rug.creators[creator] = Date.now();
+  st.rug.prints.push([Date.now(), printOf(initialBuy)]);
+  st.rug.prints = st.rug.prints.filter(([t]) => Date.now() - t < 6 * 3600e3).slice(-500);
+  log(`anti-rug: apunto ${why} (creador ${creator?.slice(0, 6)}, huella ${printOf(initialBuy)})`);
+}
+function rugReason(m) {
+  if (st.rug.creators[m.traderPublicKey]) return 'creador con rug previo';
+  const p = printOf(m.initialBuy), n = st.rug.prints.filter(([t, x]) => x === p && Date.now() - t < 3 * 3600e3).length;
+  if (n >= 2) return `fábrica de rugs (misma compra exacta, ${n} rugs en 3 h)`;
+  return null;
+}
+
 const pending = new Map();
 async function onCreate(m) {
   const devPct = (Number(m.initialBuy) || 0) / 1e9 * 100;
@@ -116,6 +132,14 @@ async function onCreate(m) {
   const txs = all.size;
   const socials = await socialsP;
   if (txs >= MAX_TXS) { radar({ ...base, ...socials, txs, decision: 'no: mucha actividad' }); bump('demasiadaActividad'); log(`${m.symbol || m.mint.slice(0, 6)}: ${txs} transacciones a los ${DECIDE_S} s (límite < ${MAX_TXS}) — no compro`); save(); return; }
+  // ¿El dev sigue teniendo sus tokens? Si ya vendió, el token está "tranquilo" porque está muerto: no comprar.
+  // (PublicNode no permite esta consulta: se usa el RPC oficial; si falla, no se bloquea la compra)
+  let devAcc = null;
+  for (let i = 0; i < 3 && !devAcc; i++) { try { const r = await fetch('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getTokenAccountsByOwner', params: [m.traderPublicKey, { mint: m.mint }, { encoding: 'jsonParsed', commitment: 'processed' }] }), signal: AbortSignal.timeout(6000) }); const j = await r.json(); devAcc = j.result || null; } catch {} if (!devAcc) await sleep(400); }
+  const devNow = (devAcc?.value || []).reduce((a, x) => a + Number(x.account?.data?.parsed?.info?.tokenAmount?.uiAmount || 0), 0);
+  if (devAcc && devNow < Number(m.initialBuy) * 0.9) { markRug(m.traderPublicKey, m.initialBuy, 'dev vendió en < 30 s'); bump('devVendio'); radar({ ...base, ...socials, txs, decision: 'no: el dev ya vendió' }); log(`${m.symbol || m.mint.slice(0, 6)}: el dev ya vendió (le queda ${(devNow / 1e7).toFixed(1)} % de ${devPct.toFixed(1)} %) — no compro`); save(); return; }
+  const rr = rugReason(m);
+  if (rr) { bump('antiRug'); radar({ ...base, ...socials, txs, decision: 'no: ' + rr }); log(`${m.symbol || m.mint.slice(0, 6)}: ${rr} — no compro`); save(); return; }
   const c = await curve(m.bondingCurveKey);
   if (!c || c.complete) return;
   const size = Math.min(st.balance * FRACTION, st.balance - 0.003);
@@ -124,7 +148,7 @@ async function onCreate(m) {
   const tokens = c.vTok - (c.vSol * c.vTok) / (c.vSol + sinLam);
   st.balance -= size;
   radar({ ...base, ...socials, txs, decision: 'COMPRA' });
-  const pos = st.open[m.mint] = { size, tokens, shiftLam: sinLam, curve: m.bondingCurveKey, openedAt: Date.now(), devPct, txs, symbol: m.symbol, name: m.name, ...socials, lagMs: Date.now() - seenAt - DECIDE_S * 1000, peak: 0, path: [] };
+  const pos = st.open[m.mint] = { size, tokens, shiftLam: sinLam, curve: m.bondingCurveKey, openedAt: Date.now(), devPct, txs, creator: m.traderPublicKey, initialBuy: m.initialBuy, symbol: m.symbol, name: m.name, ...socials, lagMs: Date.now() - seenAt - DECIDE_S * 1000, peak: 0, path: [] };
   log(`COMPRA ${m.symbol || m.mint.slice(0, 6)} | dev ${devPct.toFixed(1)} % | ${txs} txs a los ${DECIDE_S} s | ${size.toFixed(4)} SOL`);
   emit({ type: 'buy', mint: m.mint, symbol: m.symbol, name: m.name, whaleSol: null, kind: 'dev', route: 'pump', lagMs: pos.lagMs });
   save();
@@ -142,7 +166,7 @@ async function watch(mint) {
       pos.peak = Math.max(pos.peak, r);
       if (pos.path.length < 120) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
       if (r >= TP) { reason = 'TP'; back = v; break; }
-      if (r <= -SL) { reason = 'SL'; back = v; break; }
+      if (r <= -SL) { reason = 'SL'; back = v; if (Date.now() - pos.openedAt < 30000) markRug(pos.creator, pos.initialBuy, 'desplome en < 30 s tras comprar'); break; }
     }
     await sleep(1000);
   }
