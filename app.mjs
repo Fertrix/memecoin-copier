@@ -63,11 +63,15 @@ setInterval(async () => {
 // ---------- Cartera única ----------
 // Un solo saldo (START_SOL) que copia a todas las ballenas: cada compra mete SHARED_FRACTION del saldo LIBRE.
 const CF = path.join(ROOT, 'data', 'cartera.json');
-const START = Number(process.env.START_SOL || 0.09);
-const SHARED_FRACTION = Number(process.env.SHARED_FRACTION || 0.25); // 25 %: con 184 trades nuevos la ventaja no se confirma; apostar fuerte hundiría la cuenta
+// reset.json (en el repo) puede fijar los parámetros de la cartera sin tocar el servidor: start, fraction, maxOpen, minTrade, dailyLoss
+const RJ = (() => { try { return JSON.parse(fs.readFileSync(path.join(DIR, 'reset.json'), 'utf8')); } catch { return {}; } })();
+const START = Number(RJ.start ?? process.env.START_SOL ?? 0.09);
+const SHARED_FRACTION = Number(RJ.fraction ?? process.env.SHARED_FRACTION ?? 0.25);
 const MAX_TRADE_SOL = Number(process.env.MAX_TRADE_SOL || 1);
+const MAX_OPEN = Number(RJ.maxOpen ?? 99), MIN_TRADE = Number(RJ.minTrade ?? 0.005), DAILY_LOSS = Number(RJ.dailyLoss ?? 1);
 // RESET_ID (en reset.json del repo): si cambia, la cartera vuelve a START_SOL. Así se puede reiniciar desde git sin tocar el servidor.
-const RESET_ID = (() => { try { return JSON.parse(fs.readFileSync(path.join(DIR, 'reset.json'), 'utf8')).cartera || ''; } catch { return ''; } })();
+const RESET_ID = RJ.cartera || '';
+const dayKey = () => new Date().toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' });
 const freshCart = () => ({ startedAt: Date.now(), start: START, cash: START, open: {}, closed: [], curve: [[Date.now(), START]], resetId: RESET_ID });
 let cart = fs.existsSync(CF) ? JSON.parse(fs.readFileSync(CF, 'utf8')) : freshCart();
 if (RESET_ID && cart.resetId !== RESET_ID) { console.log(`[cartera] REINICIO de la cartera a ${START} SOL (reset ${RESET_ID})`); cart = freshCart(); fs.writeFileSync(CF, JSON.stringify(cart)); }
@@ -77,8 +81,13 @@ function onEvent(name, m) {
   if (COPIERS.find(c => c.name === name)?.cartera === false) return; // solo estrategias validadas mueven la cartera única
   const key = `${name}:${m.mint}`;
   if (m.type === 'buy') {
+    // Tope de pérdida diaria (hora de Madrid): si la cartera cae DAILY_LOSS desde el inicio del día, no abre más hasta mañana
+    if (cart.day !== dayKey()) { cart.day = dayKey(); cart.dayStart = cartEquity(); cart.dayStopped = false; }
+    if (!cart.dayStopped && cartEquity() < cart.dayStart * (1 - DAILY_LOSS)) { cart.dayStopped = true; console.log(`[cartera] TOPE DIARIO: −${Math.round(DAILY_LOSS * 100)} % hoy, no se abre nada más hasta mañana`); saveCart(); }
+    if (cart.dayStopped) return;
+    if (Object.keys(cart.open).length >= MAX_OPEN) { console.log(`[cartera] ya hay ${MAX_OPEN} posiciones abiertas, no copio ${name} ${m.mint.slice(0, 6)}`); return; }
     const size = Math.min(cart.cash * SHARED_FRACTION, MAX_TRADE_SOL, cart.cash - 0.003);
-    if (size < 0.005) { console.log(`[cartera] sin saldo libre para copiar ${name} ${m.mint.slice(0, 6)}`); return; }
+    if (size < MIN_TRADE) { console.log(`[cartera] operación de ${size.toFixed(4)} SOL por debajo del mínimo (${MIN_TRADE}), no copio ${name} ${m.mint.slice(0, 6)}`); return; }
     cart.cash -= size;
     cart.open[key] = { name, mint: m.mint, symbol: m.symbol, size, at: Date.now(), whaleSol: m.whaleSol, route: m.route };
     console.log(`[cartera] COMPRA ${name} ${m.mint.slice(0, 6)} con ${size.toFixed(4)} SOL`);
@@ -145,7 +154,7 @@ function status() {
   });
   return {
     now: Date.now(), bootAt: BOOT, version: process.env.APP_VERSION || 'local', errors: ERR.length, eurPerSol: EUR_PER_SOL, eurAt: EUR_AT, eurSrc: EUR_SRC, goalEur: GOAL_EUR,
-    cartera: { start: cart.start, startedAt: cart.startedAt, cash: cart.cash, equity: cartEquity(), fraction: SHARED_FRACTION, maxTrade: MAX_TRADE_SOL, open: Object.values(cart.open), closed: cart.closed.slice(-200), curve: cart.curve.slice(-1500), nClosed: cart.closed.length, wins: cart.closed.filter(x => x.ret > 0).length },
+    cartera: { start: cart.start, startedAt: cart.startedAt, cash: cart.cash, equity: cartEquity(), fraction: SHARED_FRACTION, maxTrade: MAX_TRADE_SOL, maxOpen: MAX_OPEN, minTrade: MIN_TRADE, dailyLoss: DAILY_LOSS, dayStopped: !!cart.dayStopped, open: Object.values(cart.open), closed: cart.closed.slice(-200), curve: cart.curve.slice(-1500), nClosed: cart.closed.length, wins: cart.closed.filter(x => x.ret > 0).length },
     copiers
   };
 }

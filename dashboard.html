@@ -155,7 +155,7 @@ async function load() {
   // Cartera única
   const res = C.equity / C.start - 1, profitEur = (C.equity - C.start) * E;
   document.getElementById('cEq').textContent = C.equity.toFixed(4) + ' SOL';
-  document.getElementById('cEur').textContent = '≈ ' + eur(C.equity, E) + ' · empezó con ' + eur(C.start, E) + ' · ' + Math.round(C.fraction * 100) + ' % del saldo libre por trade (máx ' + C.maxTrade + ' SOL)';
+  document.getElementById('cEur').textContent = '≈ ' + eur(C.equity, E) + ' · empezó con ' + C.start + ' SOL (' + eur(C.start, E) + ') · ' + Math.round(C.fraction * 100) + ' % del saldo libre por trade · máx ' + (C.maxOpen ?? '–') + ' a la vez · mínimo ' + (C.minTrade ?? 0.005) + ' SOL · tope diario −' + Math.round((C.dailyLoss ?? 1) * 100) + ' %' + (C.dayStopped ? ' · ⛔ PARADA HOY por el tope diario' : '');
   document.getElementById('cRes').innerHTML = `<span class="${cls(res)}">${pct(res)}</span> <span class="sub">${profitEur >= 0 ? '+' : ''}${profitEur.toFixed(2)} €</span>`;
   document.getElementById('cTr').textContent = `${C.nClosed} · ${C.nClosed ? Math.round(C.wins / C.nClosed * 100) : 0} % ganadores`;
   document.getElementById('cOpen').textContent = C.open.length;
