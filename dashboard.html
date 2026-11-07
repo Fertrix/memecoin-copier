@@ -32,6 +32,9 @@
   .sub { color:var(--mute); font-size:12px; word-break:break-all; }
   .row { display:flex; flex-wrap:wrap; gap:6px 16px; margin:8px 0; font-size:12px; }
   .row b { font-variant-numeric:tabular-nums; }
+  .tabs { display:flex; gap:8px; margin:14px 0 18px; }
+  .tab { flex:1; padding:14px 10px; font-size:16px; font-weight:600; border-radius:10px; border:1px solid #30363d; background:#161b22; color:#8b949e; cursor:pointer; }
+  .tab.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
   .row.money { font-size:13px; padding:6px 8px; background:rgba(88,166,255,.06); border-radius:6px; }
   .spark { width:100%; height:60px; display:block; margin:6px 0; }
   table { width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
@@ -67,7 +70,8 @@
     <a class="tag" id="logs" href="#" target="_blank" style="color:var(--accent);text-decoration:none">registros</a>
   </header>
 
-  <nav><a href="#cartera">💰 Tus 20 €</a><a href="#copias">👥 Copias (0,09 c/u)</a><a href="#otras">🧪 Otras pruebas</a></nav>
+  <div class="tabs"><button id="tab20" class="tab on" onclick="showView('v20')">💰 Tus 20 €</button><button id="tabTest" class="tab" onclick="showView('vTest')">🧪 Pruebas</button></div>
+  <div id="v20">
   <section class="hero" id="cartera">
     <div class="lbl">💰 TUS 20 € — simulación (paper) de lo que haría tu dinero real: una sola bolsa que copia a las 12 carteras</div>
     <div class="hero-top">
@@ -90,6 +94,8 @@
   <h3 id="dias">📅 Tus 20 € por día</h3>
   <div class="card tbl"><table id="days"><thead><tr><th>Día</th><th>Trades</th><th>Ganadores</th><th>Resultado del día</th><th>Saldo al cierre</th></tr></thead><tbody></tbody></table></div>
 
+  </div>
+  <div id="vTest" style="display:none">
   <h3 id="copias">👥 Prueba por cartera — cada una con su propio saldo de 0,09 SOL</h3>
   <div class="sub" style="margin:-4px 0 10px">Sirve para saber qué carteras ganan copiándolas. No es tu dinero: son 12 cuentas de prueba separadas.</div>
   <div class="card" id="copySum"></div>
@@ -101,9 +107,18 @@
   <h3 id="radar">📡 Radar — lanzamientos con dev fuerte revisados</h3>
   <div class="card tbl"><table id="radarT"><thead><tr><th>Hora</th><th>Token</th><th>Dev compró</th><th>Txs a los 30 s</th><th>Redes</th><th>Decisión</th></tr></thead><tbody></tbody></table></div>
 
+  </div>
   <footer id="foot"></footer>
 </div>
 <script>
+function showView(v) {
+  document.getElementById('v20').style.display = v === 'v20' ? '' : 'none';
+  document.getElementById('vTest').style.display = v === 'vTest' ? '' : 'none';
+  document.getElementById('tab20').classList.toggle('on', v === 'v20');
+  document.getElementById('tabTest').classList.toggle('on', v === 'vTest');
+  try { localStorage.setItem('vista', v); } catch {}
+}
+try { const v = localStorage.getItem('vista'); if (v === 'vTest') setTimeout(() => showView('vTest'), 0); } catch {}
 const tok = new URLSearchParams(location.search).get('t');
 const api = '/api/status' + (tok ? '?t=' + encodeURIComponent(tok) : '');
 const pct = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + ' %';
