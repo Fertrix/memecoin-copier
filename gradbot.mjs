@@ -9,6 +9,8 @@ import fs from 'node:fs';
 const START_SOL = Number(process.env.START_SOL ?? 0.09);
 const FRACTION = Number(process.env.FRACTION ?? 0.25);
 const MAX_PREMIUM = Number(process.env.MAX_PREMIUM ?? 0.05);
+const MIN_PREMIUM = Number(process.env.MIN_PREMIUM ?? -0.35); // más barato que esto = token desplomándose: no comprar
+const SL_NET = Number(process.env.SL_NET ?? 0.15);            // stop loss sobre la cotización real de venta
 const TP_NET = Number(process.env.TP_NET ?? 0.12);
 const HOLD_S = Number(process.env.HOLD_S ?? 180);
 const WAIT_FROM = 60, WAIT_TO = 120, STEP = 3000, PRIO = 0.0002;
@@ -87,6 +89,7 @@ async function onGraduation(sig) {
       const price = (lamports / 1e9) / (Number(out) / 1e6); // incluye comisión e impacto
       const prem = price / p0 - 1;
       minPrem = Math.min(minPrem, prem);
+      if (prem < MIN_PREMIUM) { log(`graduación ${mint.slice(0, 6)}: precio ${(prem * 100).toFixed(0)} % bajo la referencia — se está hundiendo, no compro`); st.stats.crash = (st.stats.crash || 0) + 1; save(); return; }
       if (prem <= MAX_PREMIUM + 0.015) {
         st.balance -= size;
         st.open[mint] = { size, tokensRaw: out.toString(), p0, t0, openedAt: Date.now(), whaleSol: null, lagMs: Date.now() - t0, route: 'grad', pool: { kind: 'amm' }, rise: prem };
@@ -107,7 +110,12 @@ async function watch(mint) {
   let reason = 'tiempo';
   while (Date.now() < pos.t0 + HOLD_S * 1000) {
     const out = await jup(mint, WSOL, pos.tokensRaw);
-    if (out && Number(out) / 1e9 - PRIO >= pos.size * (1 + TP_NET)) { reason = 'TP'; break; }
+    if (out) {
+      const r = (Number(out) / 1e9 - PRIO) / pos.size - 1;
+      (pos.path ||= []).push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
+      if (r >= TP_NET) { reason = 'TP'; break; }
+      if (r <= -SL_NET) { reason = 'SL'; break; }
+    }
     await sleep(STEP);
   }
   let out = await jup(mint, WSOL, pos.tokensRaw);
@@ -115,7 +123,7 @@ async function watch(mint) {
   const back = out ? Math.max(0, Number(out) / 1e9 - PRIO) : 0;
   const ret = back / pos.size - 1;
   st.balance += back;
-  st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: null, kind: 'grad', reason, rise: pos.rise, peak: null, route: 'grad' });
+  st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: null, kind: 'grad', reason, rise: pos.rise, peak: null, route: 'grad', path: (pos.path || []).slice(0, 80) });
   delete st.open[mint];
   emit({ type: 'sell', mint, ret, holdS: (Date.now() - pos.openedAt) / 1000 });
   const eq = st.balance + Object.values(st.open).reduce((a, o) => a + o.size, 0);

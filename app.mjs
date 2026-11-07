@@ -93,7 +93,7 @@ const shutdown = () => { for (const k of KIDS) { try { k.kill(); } catch {} } pr
 process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown); process.on('disconnect', shutdown);
 function start(c) {
   const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), MAX_RISE: String(c.maxRise ?? 1), TRAIL: String(c.trail ?? 0), TRAIL_ARM: String(c.trailArm ?? 0.4), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
-  if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
+  if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), MIN_PREMIUM: String(c.minPremium ?? -0.35), SL_NET: String(c.slNet ?? 0.15), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
   const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
@@ -109,10 +109,10 @@ function status() {
   const copiers = COPIERS.map(c => {
     const s = readState(c);
     const startSol = c.startSol ?? 0.09;
-    if (!s) return { name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
+    if (!s) return { name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
     const open = Object.entries(s.open).map(([mint, o]) => ({ mint, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs }));
     return {
-      name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
+      name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
       equity: s.balance + open.reduce((a, o) => a + o.size, 0),
       closed: s.closed.map(x => ({ mint: x.mint, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol, reason: x.reason, rise: x.rise, peak: x.peak, route: x.route })),
       open

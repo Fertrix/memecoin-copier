@@ -1,7 +1,7 @@
 [
   {
     "name": "649ot",
-    "label": "649ot (Multi-Bagger 2)",
+    "label": "649ot (Multi-Bagger 2) · solo medición",
     "wallet": "649ot18fccD6Mc9V4aHWTdoSVCuqAEtg9aWuxBA9cRoU",
     "ruleMin": 1,
     "ruleMax": 4,
@@ -9,13 +9,13 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": -0.017,
-    "cartera": true,
+    "cartera": false,
     "trail": 0.15,
     "trailArm": 0.4
   },
   {
     "name": "grad",
-    "label": "Graduaciones (BOOST) · método nuevo",
+    "label": "Graduaciones (BOOST)",
     "type": "grad",
     "wallet": "pump.fun → PumpSwap (cuenta de migración)",
     "ruleMin": 0,
@@ -26,7 +26,9 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.06,
-    "cartera": true
+    "cartera": true,
+    "minPremium": -0.35,
+    "slNet": 0.15
   },
   {
     "name": "clukz",
