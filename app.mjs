@@ -2,6 +2,7 @@
 // con el mismo dinero (lo que harías de verdad con tu saldo), sirve el panel web y, si hay webhook, avisa por Discord.
 import { fork } from 'node:child_process';
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -99,7 +100,7 @@ function start(c) {
   const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), MAX_RISE: String(c.maxRise ?? 1), TRAIL: String(c.trail ?? 0), TRAIL_ARM: String(c.trailArm ?? 0.4), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
   if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), MIN_PREMIUM: String(c.minPremium ?? -0.35), SL_NET: String(c.slNet ?? 0.15), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
   if (c.env) for (const [k, v] of Object.entries(c.env)) env[k] = String(v);
-  const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : c.type === 'dev' ? 'devbot.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+  const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : c.type === 'dev' ? 'devbot.mjs' : c.type === 'rec' ? 'recorder.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
   KIDS.add(ch);
@@ -163,6 +164,10 @@ http.createServer((req, res) => {
   const ip = req.socket.remoteAddress || '?';
   // Solo lectura, pública
   if (u.pathname === '/api/monitor') return json(res, { ...status(), logs: LOG.slice(-Math.min(400, Number(u.searchParams.get('n') || 150))), errorsList: ERR.slice(-50) });
+  // Grabaciones de la máquina del tiempo (solo lectura, pública: datos de mercado). Nombre de archivo validado: sin rutas.
+  if (u.pathname === '/api/rec') { const d = path.join(ROOT, 'data', 'rec'); let files = []; try { files = fs.readdirSync(d).filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).map(f => ({ f, bytes: fs.statSync(path.join(d, f)).size })); } catch {} return json(res, files); }
+  const recM = u.pathname.match(/^\/api\/rec\/(\d{4}-\d{2}-\d{2}\.jsonl)$/);
+  if (recM) { const f = path.join(ROOT, 'data', 'rec', recM[1]); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store' }); return fs.createReadStream(f).pipe(zlib.createGzip()).pipe(res); }
   // Login
   if (u.pathname === '/login' && req.method === 'POST') {
     const f = failed.get(ip) || { n: 0, until: 0 };

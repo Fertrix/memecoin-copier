@@ -177,7 +177,7 @@ async function load() {
   for (const x of C.closed) { const k = new Date(x.at).toLocaleDateString('es-ES'); run += x.pnl; const d = days[k] ||= { n: 0, w: 0, pnl: 0, end: 0 }; d.n++; if (x.ret > 0) d.w++; d.pnl += x.pnl; d.end = run; }
   document.querySelector('#days tbody').innerHTML = Object.entries(days).reverse().map(([k, d]) => `<tr><td>${k}</td><td>${d.n}</td><td>${d.w}</td><td class="${cls(d.pnl)}">${d.pnl >= 0 ? '+' : ''}${(d.pnl * E).toFixed(2)} €</td><td>${d.end.toFixed(4)} SOL (${eur(d.end, E)})</td></tr>`).join('') || '<tr><td colspan="5" class="sub">Aún sin trades cerrados</td></tr>';
   // Ballenas
-  document.getElementById('cards').innerHTML = s.copiers.map(c => {
+  document.getElementById('cards').innerHTML = s.copiers.filter(c => c.type !== 'rec').map(c => {
     const n = c.closed.length, w = c.closed.filter(x => x.ret > 0).length;
     const m = n ? c.closed.reduce((a, x) => a + x.ret, 0) / n : null;
     const lg = c.closed.map(x => x.lagMs).filter(Boolean);

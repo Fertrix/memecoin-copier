@@ -35,5 +35,16 @@
     "cartera": false,
     "minPremium": -0.35,
     "slNet": 0.15
+  },
+  {
+    "name": "rec",
+    "label": "Grabadora (máquina del tiempo continua)",
+    "type": "rec",
+    "wallet": "pump.fun · todos los lanzamientos",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0,
+    "startSol": 0.09,
+    "cartera": false
   }
 ]
