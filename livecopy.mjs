@@ -91,7 +91,7 @@ function parse(tx) {
     const ci = keys.indexOf(pb.owner);
     if (ci >= 0) refVSol = 30 + m.postBalances[ci] / 1e9 - 0.00149;
   }
-  return { mint, side, sol: Math.abs(solCh), pool, refVSol, remaining: amt(post, mint, W), moved: Math.abs(d) };
+  return { mint, side, sol: Math.abs(solCh), pool, refVSol, remaining: amt(post, mint, W), moved: Math.abs(d), slot: tx.slot || 0 };
 }
 
 // Cotización REAL ejecutable vía Jupiter (cualquier launchpad/AMM, comisiones del pool incluidas). Devuelve outAmount (unidades raw).
@@ -113,11 +113,23 @@ const MAX_RISE = Number(process.env.MAX_RISE ?? 1); // 1 = sin filtro; 0.03 = so
 const ONLY_PUMP = process.env.ONLY_PUMP === '1';
 // Evita compras duplicadas: varias compras seguidas de la ballena en el mismo token llegan a la vez; solo la primera cuenta.
 const pending = new Set(), pendingSell = new Map();
+// Última venta vista de la ballena por token (slot): las tx se procesan en paralelo y pueden llegar desordenadas.
+const lastSellSlot = new Map();
+const PUMP = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
+// Comprueba en la cadena que la cuenta es de verdad una curva de pump.fun activa (dueño = programa pump, sin completar)
+async function isPumpCurve(addr) {
+  const a = await rpc('getAccountInfo', [addr, { encoding: 'base64', commitment: 'processed' }]);
+  const v = a?.value; if (!v || v.owner !== PUMP) return false;
+  const b = Buffer.from(v.data[0], 'base64'); return b.length >= 49 && b[48] === 0;
+}
 async function onBuy(ev, sig, txTime) {
   if (st.open[ev.mint] || pending.has(ev.mint)) return;
-  if (ONLY_PUMP && !(ev.pool.kind === 'curva' && ev.mint.endsWith('pump'))) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: no es la curva de pump.fun (${ev.pool.kind})`); return; }
   pending.add(ev.mint);
-  try { await onBuyInner(ev, sig, txTime); } finally {
+  try {
+    if (ONLY_PUMP && !(ev.pool.kind === 'curva' && ev.mint.endsWith('pump') && await isPumpCurve(ev.pool.owner))) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: no es una curva de pump.fun activa (${ev.pool.kind})`); return; }
+    if ((lastSellSlot.get(ev.mint) || 0) >= ev.slot) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: la ballena ya vendió después de esta compra`); return; }
+    await onBuyInner(ev, sig, txTime);
+  } finally {
     pending.delete(ev.mint);
     // si la ballena vendió mientras comprábamos, aplicar esa venta ahora
     const ps = pendingSell.get(ev.mint); pendingSell.delete(ev.mint);
@@ -149,7 +161,7 @@ async function onBuyInner(ev, sig, txTime) {
   const pIn = ev.pool.kind === 'curva' ? await poolPrice(ev.pool) : null;
   st.open[ev.mint] = { size, tokensRaw: q.out.toString(), route: q.route, pool: ev.pool, whaleSig: sig, whaleSol: ev.sol, openedAt: Date.now(), lagMs: Date.now() - txTime * 1000, vSolEntry: pIn?.solR ?? null, peak: 1, rise: ev.rise ?? null };
   emit({ type: 'buy', mint: ev.mint, whaleSol: ev.sol, kind: ev.pool.kind, route: q.route, lagMs: st.open[ev.mint].lagMs });
-  log(`COMPRA copiada ${ev.mint.slice(0, 6)} vía ${q.route} | ballena ${ev.sol.toFixed(2)} SOL${ev.sol >= 1 && ev.sol < 4 ? ' (regla 1-4 ✓)' : ''} | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s`);
+  log(`COMPRA copiada ${ev.mint.slice(0, 6)} vía ${q.route} | ballena ${ev.sol.toFixed(2)} SOL | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s`);
   save();
 }
 
@@ -173,7 +185,15 @@ async function onBuyPool(ev, sig, txTime) {
 // Con PROPORTIONAL=0 se vuelve al modo antiguo (todo en su primera venta).
 const PROPORTIONAL = process.env.PROPORTIONAL !== '0';
 const MAX_HOLD_S = Number(process.env.MAX_HOLD_S ?? 1200);
-async function onSell(ev, reason = 'espejo') {
+// Las ventas de un mismo token se ejecutan EN ORDEN, una detrás de otra (antes se descartaban si llegaban seguidas)
+const sellQ = new Map();
+function onSell(ev, reason = 'espejo') {
+  if (reason === 'espejo' && ev.slot) lastSellSlot.set(ev.mint, Math.max(lastSellSlot.get(ev.mint) || 0, ev.slot));
+  const p = (sellQ.get(ev.mint) || Promise.resolve()).then(() => onSellInner(ev, reason)).catch(e => log(`venta ${ev.mint.slice(0, 6)}: error ${e?.message || e}`));
+  sellQ.set(ev.mint, p); p.then(() => { if (sellQ.get(ev.mint) === p) sellQ.delete(ev.mint); });
+  return p;
+}
+async function onSellInner(ev, reason = 'espejo') {
   if (pending.has(ev.mint) && reason === 'espejo') {
     // acumula ventas que llegan mientras compramos (se aplican como una sola, con la fracción total vendida)
     const prev = pendingSell.get(ev.mint);
@@ -242,10 +262,11 @@ async function loop() {
     const sigs = await rpc('getSignaturesForAddress', [W, { limit: 25, commitment: 'confirmed' }]);
     const fresh = (sigs || []).filter(s => !s.err && !seen.has(s.signature)).reverse();
     for (const s of fresh) await processSig(s.signature, s.blockTime, 'sondeo');
-    await sleep(wsAlive ? 10000 : POLL); // con RPC públicos el respaldo no cuesta créditos
+    await sleep(wsAlive ? Number(process.env.POLL_WS ?? 4000) : POLL); // el WebSocket público pierde avisos: respaldo cada 4 s
   }
 }
 
+const MAX_BUY_AGE_S = Number(process.env.MAX_BUY_AGE_S ?? 30);
 async function processSig(sig, blockTime, via) {
   if (seen.has(sig)) return;
   seen.add(sig);
@@ -257,7 +278,7 @@ async function processSig(sig, blockTime, via) {
   const bt = blockTime || tx.blockTime || Date.now() / 1000;
   const ageS = Date.now() / 1000 - bt;
   // Compras antiguas (p. ej. hechas mientras el bot se reiniciaba por una actualización): se ignoran. Solo se avisa si llegó tarde en vivo.
-  if (ev.side === 'buy' && ageS > 30) { if (Date.now() - BOOT > 60000) log(`compra ${ev.mint.slice(0, 6)} ignorada: detectada con ${ageS.toFixed(0)} s de retraso (>30 s)`); return; }
+  if (ev.side === 'buy' && ageS > MAX_BUY_AGE_S) { if (Date.now() - BOOT > 60000) log(`compra ${ev.mint.slice(0, 6)} ignorada: detectada con ${ageS.toFixed(0)} s de retraso (>30 s)`); return; }
   if (ev.side === 'buy') { log(`(detectada vía ${via})`); onBuy(ev, sig, bt); } else onSell(ev);
 }
 
@@ -277,4 +298,10 @@ function startWs() {
   ws.onclose = retry; ws.onerror = () => { try { ws.close(); } catch {} };
   setInterval(() => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ jsonrpc: '2.0', id: 99, method: 'getHealth' })); } catch {} }, 30000);
 }
-loop();
+// Modo PRUEBA (REPLAY=archivo.json con [{signature, blockTime}]): mete las tx reales todas a la vez y desordenadas.
+if (process.env.REPLAY) {
+  const chrono = process.env.REPLAY_ORDER === 'chrono';
+  const L = JSON.parse(fs.readFileSync(process.env.REPLAY, 'utf8')).sort(chrono ? (a, b) => a.blockTime - b.blockTime : () => Math.random() - 0.5);
+  log(`PRUEBA: ${L.length} tx reales ${chrono ? 'en orden, como en vivo' : 'en paralelo y desordenadas'}`);
+  (chrono ? (async () => { for (const x of L) { await processSig(x.signature, x.blockTime, 'prueba'); await sleep(1500); } })() : Promise.all(L.map(x => processSig(x.signature, x.blockTime, 'prueba')))).then(async () => { await sleep(8000); for (const q of sellQ.values()) await q; save(); log(`PRUEBA terminada | saldo ${st.balance.toFixed(4)} | abiertas ${Object.keys(st.open).length} | cerradas ${st.closed.length}`); process.exit(0); });
+} else loop();
