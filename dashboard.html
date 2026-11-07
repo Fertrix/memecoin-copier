@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Copiador Paper</title>
+<title>Memecoin Bot</title>
 <style>
   :root { --bg:#0d1015; --card:#151a21; --card2:#1a2029; --line:#252c36; --text:#e6edf3; --mute:#8b949e; --up:#3fb950; --down:#f85149; --accent:#58a6ff; --gold:#e3b341; }
   * { box-sizing:border-box; }
@@ -39,13 +39,24 @@
   .tbl { overflow-x:auto; }
   .pill { font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); }
   .ok { color:var(--up); border-color:#23462c; } .bad { color:var(--down); border-color:#4d2626; } .neutral { color:var(--mute); }
+  nav { position:sticky; top:0; z-index:5; background:rgba(13,16,21,.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); margin:0 -16px 12px; padding:8px 16px; display:flex; gap:6px; overflow-x:auto; }
+  nav a { color:var(--text); text-decoration:none; font-size:13px; padding:5px 12px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; }
+  nav a:hover { border-color:var(--accent); color:var(--accent); }
+  .tk { display:inline-flex; align-items:center; gap:6px; }
+  .tk .sym { font-weight:600; color:var(--text); text-decoration:none; }
+  .tk .sym:hover { color:var(--gold); text-decoration:underline; }
+  .lnk { font-size:10px; padding:1px 5px; border-radius:5px; border:1px solid var(--line); color:var(--mute); text-decoration:none; }
+  .lnk:hover { color:var(--accent); border-color:var(--accent); }
+  .lnk.pf { color:#7ee787; border-color:#23462c; }
+  .soc { font-size:11px; color:var(--accent); text-decoration:none; margin-right:4px; }
+  .dec-buy { color:var(--gold); font-weight:600; }
   footer { color:var(--mute); font-size:12px; margin-top:18px; line-height:1.6; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Copiador de ballenas</h1>
+    <h1>🚀 Memecoin Bot</h1>
     <span class="tag">PAPER · 0 € reales</span>
     <span class="tag live" id="upd">conectando…</span>
     <span class="tag" id="uptime"></span>
@@ -54,8 +65,9 @@
     <a class="tag" id="logs" href="#" target="_blank" style="color:var(--accent);text-decoration:none">registros</a>
   </header>
 
-  <section class="hero">
-    <div class="lbl">Cartera única — lo que harías con tu saldo real copiando a todas las ballenas</div>
+  <nav><a href="#cartera">💰 Cartera</a><a href="#radar">📡 Radar</a><a href="#estrategias">🧠 Estrategias</a><a href="#trades-sec">📜 Trades</a><a href="#dias">📅 Por día</a></nav>
+  <section class="hero" id="cartera">
+    <div class="lbl">Cartera única — lo que harías con tu saldo real (solo las estrategias validadas la mueven)</div>
     <div class="hero-top">
       <div><div class="huge" id="cEq">–</div><div class="sub" id="cEur"></div></div>
       <div><div class="lbl">Resultado</div><div class="mid" id="cRes">–</div></div>
@@ -70,14 +82,17 @@
 
   <div class="kpis" id="kpis"></div>
 
-  <h3>Por día</h3>
+  <h3 id="dias">📅 Por día</h3>
   <div class="card tbl"><table id="days"><thead><tr><th>Día</th><th>Trades</th><th>Ganadores</th><th>Resultado del día</th><th>Saldo al cierre</th></tr></thead><tbody></tbody></table></div>
 
-  <h3>Ballenas copiadas</h3>
+  <h3 id="radar">📡 Radar en vivo — lanzamientos con dev fuerte que el bot ha revisado</h3>
+  <div class="card tbl"><table id="radarT"><thead><tr><th>Hora</th><th>Token</th><th>Dev compró</th><th>Txs a los 30 s</th><th>Redes</th><th>Decisión</th></tr></thead><tbody></tbody></table></div>
+
+  <h3 id="estrategias">🧠 Estrategias</h3>
   <div class="grid" id="cards"></div>
 
-  <h3>Últimos trades de la cartera</h3>
-  <div class="card tbl"><table id="trades"><thead><tr><th>Cuándo</th><th>Ballena</th><th>Token</th><th>Metido</th><th>Resultado</th><th>€</th><th>Duración</th></tr></thead><tbody></tbody></table></div>
+  <h3 id="trades-sec">📜 Últimos trades de la cartera</h3>
+  <div class="card tbl"><table id="trades"><thead><tr><th>Cuándo</th><th>Estrategia</th><th>Token</th><th>Metido</th><th>Resultado</th><th>€</th><th>Duración</th></tr></thead><tbody></tbody></table></div>
 
   <footer id="foot"></footer>
 </div>
@@ -89,6 +104,23 @@ const cls = v => v >= 0 ? 'up' : 'down';
 const eur = (sol, E) => (sol * E).toFixed(2) + ' €';
 const ago = ms => { const s = Math.round((Date.now() - ms) / 1000); return s < 60 ? s + ' s' : s < 3600 ? Math.round(s / 60) + ' min' : s < 86400 ? (s / 3600).toFixed(1) + ' h' : (s / 86400).toFixed(1) + ' d'; };
 const dur = s => s == null ? '–' : s < 60 ? Math.round(s) + ' s' : (s / 60).toFixed(1) + ' min';
+const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+const safeUrl = u => { try { const x = new URL(String(u).startsWith('http') ? u : 'https://' + u); return /^https?:$/.test(x.protocol) ? x.href : null; } catch { return null; } };
+function tokenCell(mint, symbol) {
+  const sym = esc(symbol || mint.slice(0, 6));
+  return `<span class="tk"><a class="sym" href="https://pump.fun/coin/${mint}" target="_blank" rel="noopener" title="${mint}">${sym}</a>`
+    + `<a class="lnk pf" href="https://pump.fun/coin/${mint}" target="_blank" rel="noopener">pump</a>`
+    + `<a class="lnk" href="https://dexscreener.com/solana/${mint}" target="_blank" rel="noopener">dex</a>`
+    + `<a class="lnk" href="https://solscan.io/token/${mint}" target="_blank" rel="noopener">scan</a></span>`;
+}
+function socials(x) {
+  const out = [];
+  const tw = x.twitter && safeUrl(x.twitter), tg = x.telegram && safeUrl(x.telegram), web = x.website && safeUrl(x.website);
+  if (tw) out.push(`<a class="soc" href="${esc(tw)}" target="_blank" rel="noopener">𝕏</a>`);
+  if (tg) out.push(`<a class="soc" href="${esc(tg)}" target="_blank" rel="noopener">TG</a>`);
+  if (web) out.push(`<a class="soc" href="${esc(web)}" target="_blank" rel="noopener">web</a>`);
+  return out.join('') || '<span class="sub">–</span>';
+}
 const hhmm = t => new Date(t).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 function lineChart(svg, pts, base) {
   if (pts.length < 2) { svg.innerHTML = `<text x="500" y="95" fill="#8b949e" font-size="14" text-anchor="middle">La gráfica aparece con el primer trade cerrado</text>`; return; }
@@ -152,8 +184,8 @@ async function load() {
     const rule = c.type === 'dev' ? 'compra si el dev compró ≥ 8 % al lanzar y a los 30 s hay menos de 9 transacciones · TP +100 % · SL −25 % · máx 100 s · <b>en la cartera única</b>' : c.type === 'grad' ? `compra entre 60 y 120 s tras graduarse si el precio está entre ${Math.round((c.minPremium ?? -0.35) * 100)} % y +${Math.round((c.maxPremium ?? 0.05) * 100)} % de la referencia · TP +${Math.round((c.tpNet ?? 0.12) * 100)} % · SL −${Math.round((c.slNet ?? 0.15) * 100)} % · máx ${c.holdS ?? 180} s` + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>') : (c.rule[1] < 1e6 ? `copia compras de ${c.rule[0]}–${c.rule[1]} SOL` : 'copia todas sus compras') + (c.maxRise != null && c.maxRise < 1 ? ` · solo si el precio subió ≤ ${Math.round(c.maxRise * 100)} % (llegar antes que los bots)` : '') + (c.trail ? ` · trailing ${Math.round(c.trail*100)} % tras +${Math.round(c.trailArm*100)} %` : '') + (c.inCartera === false ? ' · <b>no mueve la cartera</b>' : ' · <b>en la cartera única</b>');
     let verdict = '<span class="pill neutral">pocos datos</span>';
     if (n >= 8 && c.expected != null) verdict = m >= c.expected * 0.5 ? '<span class="pill ok">aguanta el histórico</span>' : m > 0 ? '<span class="pill neutral">por debajo del histórico</span>' : '<span class="pill bad">perdiendo en vivo</span>';
-    const rows = [...c.open.map(o => `<tr><td>${o.mint.slice(0, 6)}</td><td class="sub">abierta</td><td>${o.whaleSol?.toFixed(2) ?? '–'}</td><td></td><td></td><td></td><td>${ago(o.openedAt)}</td></tr>`),
-      ...c.closed.slice(-8).reverse().map(x => `<tr><td>${x.mint.slice(0, 6)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td>${x.whaleSol?.toFixed(2) ?? '–'}</td><td>${x.rise == null ? '–' : pct(x.rise)}</td><td>${x.peak ? 'x' + x.peak.toFixed(2) : '–'}</td><td>${x.reason || 'espejo'}</td><td>${ago(x.at)}</td></tr>`)].join('');
+    const rows = [...c.open.map(o => `<tr><td>${tokenCell(o.mint, o.symbol)}</td><td class="sub">abierta</td><td>${o.whaleSol?.toFixed(2) ?? '–'}</td><td></td><td></td><td></td><td>${ago(o.openedAt)}</td></tr>`),
+      ...c.closed.slice(-8).reverse().map(x => `<tr><td>${tokenCell(x.mint, x.symbol)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td>${x.whaleSol?.toFixed(2) ?? '–'}</td><td>${x.rise == null ? '–' : pct(x.rise)}</td><td>${x.peak ? 'x' + x.peak.toFixed(2) : '–'}</td><td>${x.reason || 'espejo'}</td><td>${ago(x.at)}</td></tr>`)].join('');
     return `<div class="card"><h2><span>${c.label}</span>${verdict}</h2>
       <div class="sub">${c.wallet}</div><div class="sub">${rule}</div>
       <div class="row"><span>Trades <b>${n}</b></span><span>Ganadores <b>${n ? Math.round(w / n * 100) : 0} %</b></span>
@@ -163,9 +195,12 @@ async function load() {
       ${spark(c)}
       <div class="tbl"><table><thead><tr><th>Token</th><th>Resultado</th><th>Ballena (SOL)</th><th>Subida al entrar</th><th>Máx.</th><th>Salida</th><th>Hace</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="sub">Esperando a que la ballena opere…</td></tr>'}</tbody></table></div></div>`;
   }).join('');
+  // Radar
+  const rec = s.copiers.flatMap(c => c.recent || []).sort((a, b) => b.at - a.at).slice(0, 40);
+  document.querySelector('#radarT tbody').innerHTML = rec.map(x => `<tr><td>${hhmm(x.at)}</td><td>${tokenCell(x.mint, x.symbol)} <span class="sub">${esc((x.name || '').slice(0, 28))}</span></td><td>${x.devPct} %</td><td>${x.txs}</td><td>${socials(x)}</td><td class="${x.decision === 'COMPRA' ? 'dec-buy' : 'sub'}">${x.decision === 'COMPRA' ? '🟡 COMPRA' : esc(x.decision)}</td></tr>`).join('') || '<tr><td colspan="6" class="sub">Esperando lanzamientos con dev fuerte…</td></tr>';
   // Últimos trades
-  document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${o.name}</td><td>${o.mint.slice(0, 6)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),
-    ...C.closed.slice(-25).reverse().map(x => `<tr><td>${hhmm(x.at)}</td><td>${x.name}</td><td>${x.mint.slice(0, 6)}</td><td>${x.size.toFixed(4)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="${cls(x.pnl)}">${(x.pnl * E).toFixed(2)}</td><td>${dur(x.holdS)}</td></tr>`)].join('') || '<tr><td colspan="7" class="sub">Aún sin trades</td></tr>';
+  document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${esc(o.name)}</td><td>${tokenCell(o.mint, o.symbol)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),
+    ...C.closed.slice(-25).reverse().map(x => `<tr><td>${hhmm(x.at)}</td><td>${esc(x.name)}</td><td>${tokenCell(x.mint, x.symbol)}</td><td>${x.size.toFixed(4)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="${cls(x.pnl)}">${(x.pnl * E).toFixed(2)}</td><td>${dur(x.holdS)}</td></tr>`)].join('') || '<tr><td colspan="7" class="sub">Aún sin trades</td></tr>';
   document.getElementById('upd').textContent = 'en vivo · ' + new Date(s.now).toLocaleTimeString('es-ES');
   if (s.auth) document.getElementById('logout').style.display = '';
   document.getElementById('uptime').textContent = 'encendido hace ' + ago(s.bootAt);

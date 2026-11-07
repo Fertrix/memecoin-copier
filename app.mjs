@@ -73,7 +73,7 @@ function onEvent(name, m) {
     const size = Math.min(cart.cash * SHARED_FRACTION, MAX_TRADE_SOL, cart.cash - 0.003);
     if (size < 0.005) { console.log(`[cartera] sin saldo libre para copiar ${name} ${m.mint.slice(0, 6)}`); return; }
     cart.cash -= size;
-    cart.open[key] = { name, mint: m.mint, size, at: Date.now(), whaleSol: m.whaleSol, route: m.route };
+    cart.open[key] = { name, mint: m.mint, symbol: m.symbol, size, at: Date.now(), whaleSol: m.whaleSol, route: m.route };
     console.log(`[cartera] COMPRA ${name} ${m.mint.slice(0, 6)} con ${size.toFixed(4)} SOL`);
     discord(`🟢 **${name}** compró ${m.whaleSol?.toFixed(2)} SOL de \`${m.mint.slice(0, 6)}\` → copiamos ${size.toFixed(4)} SOL (retraso ${(m.lagMs / 1000).toFixed(1)} s)`);
   } else if (m.type === 'sell') {
@@ -81,7 +81,7 @@ function onEvent(name, m) {
     delete cart.open[key];
     const back = Math.max(0, o.size * (1 + m.ret));
     cart.cash += back;
-    cart.closed.push({ name, mint: m.mint, size: o.size, ret: m.ret, pnl: back - o.size, at: Date.now(), holdS: m.holdS });
+    cart.closed.push({ name, mint: m.mint, symbol: o.symbol || m.symbol, size: o.size, ret: m.ret, pnl: back - o.size, at: Date.now(), holdS: m.holdS });
     const eq = cartEquity();
     cart.curve.push([Date.now(), eq]);
     if (cart.curve.length > 5000) cart.curve = cart.curve.filter((_, i) => i % 2 === 0);
@@ -115,11 +115,11 @@ function status() {
     const s = readState(c);
     const startSol = c.startSol ?? 0.09;
     if (!s) return { name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
-    const open = Object.entries(s.open).map(([mint, o]) => ({ mint, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs }));
+    const open = Object.entries(s.open).map(([mint, o]) => ({ mint, symbol: o.symbol, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs }));
     return {
       name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
       equity: s.balance + open.reduce((a, o) => a + o.size, 0),
-      closed: s.closed.map(x => ({ mint: x.mint, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol, reason: x.reason, rise: x.rise, peak: x.peak, route: x.route })),
+      recent: (s.recent || []).slice(-60), closed: s.closed.map(x => ({ mint: x.mint, symbol: x.symbol, devPct: x.devPct, txs: x.txs, twitter: x.twitter, telegram: x.telegram, website: x.website, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol, reason: x.reason, rise: x.rise, peak: x.peak, route: x.route })),
       open
     };
   });

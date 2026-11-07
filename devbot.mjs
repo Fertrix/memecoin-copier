@@ -77,6 +77,17 @@ function unwatchCurve(c) { watchers.delete(c); const sid = subIds.get(c); subIds
 lwsConnect();
 setInterval(() => { try { if (lwsReady) lws.send('{"jsonrpc":"2.0","id":9,"method":"getHealth"}'); } catch {} }, 30000);
 
+async function meta(uri) {
+  const cid = uri?.match(/ipfs\/([^/?#]+)/)?.[1];
+  for (const u of cid ? [`https://ipfs.io/ipfs/${cid}`, `https://dweb.link/ipfs/${cid}`] : uri ? [uri] : []) {
+    try { const r = await fetch(u, { signal: AbortSignal.timeout(6000) }); if (r.ok) { const j = await r.json(); return { twitter: j.twitter || null, telegram: j.telegram || null, website: j.website || null, image: j.image || null }; } } catch {}
+  }
+  return {};
+}
+// Radar: últimas decisiones (para el panel)
+st.recent ||= [];
+function radar(x) { st.recent.push({ at: Date.now(), ...x }); if (st.recent.length > 80) st.recent.splice(0, st.recent.length - 80); }
+
 const pending = new Map();
 async function onCreate(m) {
   const devPct = (Number(m.initialBuy) || 0) / 1e9 * 100;
@@ -90,6 +101,8 @@ async function onCreate(m) {
   const seenAt = Date.now(); pending.set(m.mint, seenAt);
   watchCurve(m.bondingCurveKey);
   log(`lanzamiento ${m.symbol || m.mint.slice(0, 6)}: el dev compró ${devPct.toFixed(1)} % — reviso a los ${DECIDE_S} s`);
+  const socialsP = meta(m.uri).catch(() => ({}));
+  const base = { mint: m.mint, symbol: m.symbol, name: m.name, devPct: +devPct.toFixed(1), creator: m.traderPublicKey };
   await sleep(Math.max(0, seenAt - 1000 + DECIDE_S * 1000 - Date.now()));
   // ¿Cuántas transacciones ha tenido la curva? (sin contar la de creación)
   // El índice de firmas de los RPC públicos va con retraso, así que se une con lo visto en vivo por WebSocket desde el lanzamiento.
@@ -101,7 +114,8 @@ async function onCreate(m) {
   all.delete(m.signature);
   if (!sigs && !live) { bump('sinDatos'); return; }
   const txs = all.size;
-  if (txs >= MAX_TXS) { bump('demasiadaActividad'); log(`${m.symbol || m.mint.slice(0, 6)}: ${txs} transacciones a los ${DECIDE_S} s (límite < ${MAX_TXS}) — no compro`); save(); return; }
+  const socials = await socialsP;
+  if (txs >= MAX_TXS) { radar({ ...base, ...socials, txs, decision: 'no: mucha actividad' }); bump('demasiadaActividad'); log(`${m.symbol || m.mint.slice(0, 6)}: ${txs} transacciones a los ${DECIDE_S} s (límite < ${MAX_TXS}) — no compro`); save(); return; }
   const c = await curve(m.bondingCurveKey);
   if (!c || c.complete) return;
   const size = Math.min(st.balance * FRACTION, st.balance - 0.003);
@@ -109,9 +123,10 @@ async function onCreate(m) {
   const sinLam = Math.floor((size * (1 - FEE) - PRIO) * 1e9);
   const tokens = c.vTok - (c.vSol * c.vTok) / (c.vSol + sinLam);
   st.balance -= size;
-  const pos = st.open[m.mint] = { size, tokens, shiftLam: sinLam, curve: m.bondingCurveKey, openedAt: Date.now(), devPct, txs, symbol: m.symbol, lagMs: Date.now() - seenAt - DECIDE_S * 1000, peak: 0, path: [] };
+  radar({ ...base, ...socials, txs, decision: 'COMPRA' });
+  const pos = st.open[m.mint] = { size, tokens, shiftLam: sinLam, curve: m.bondingCurveKey, openedAt: Date.now(), devPct, txs, symbol: m.symbol, name: m.name, ...socials, lagMs: Date.now() - seenAt - DECIDE_S * 1000, peak: 0, path: [] };
   log(`COMPRA ${m.symbol || m.mint.slice(0, 6)} | dev ${devPct.toFixed(1)} % | ${txs} txs a los ${DECIDE_S} s | ${size.toFixed(4)} SOL`);
-  emit({ type: 'buy', mint: m.mint, whaleSol: null, kind: 'dev', route: 'pump', lagMs: pos.lagMs });
+  emit({ type: 'buy', mint: m.mint, symbol: m.symbol, name: m.name, whaleSol: null, kind: 'dev', route: 'pump', lagMs: pos.lagMs });
   save();
   watch(m.mint);
 }
@@ -139,9 +154,9 @@ async function watch(mint) {
   back ??= 0;
   const ret = back / pos.size - 1;
   st.balance += back;
-  st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: null, kind: 'dev', reason, rise: null, peak: pos.peak, route: 'pump', devPct: pos.devPct, txs: pos.txs, path: pos.path });
+  st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: null, kind: 'dev', reason, rise: null, peak: pos.peak, route: 'pump', devPct: pos.devPct, txs: pos.txs, path: pos.path, symbol: pos.symbol, name: pos.name, twitter: pos.twitter, telegram: pos.telegram, website: pos.website });
   delete st.open[mint];
-  emit({ type: 'sell', mint, ret, holdS: (Date.now() - pos.openedAt) / 1000 });
+  emit({ type: 'sell', mint, ret, holdS: (Date.now() - pos.openedAt) / 1000, symbol: pos.symbol });
   log(`VENTA (${reason}) ${pos.symbol || mint.slice(0, 6)} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)} % (máx ${(pos.peak * 100).toFixed(0)} %) | saldo ${st.balance.toFixed(4)} SOL | ${st.closed.length} cerrados, ${st.closed.filter(x => x.ret > 0).length} ganadores`);
   save();
 }
