@@ -25,6 +25,7 @@ const st = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : {
 const seen = new Set(st.seen);
 // Si el proceso padre (app.mjs) se reinicia o desaparece, este copiador se cierra para no quedar duplicado
 process.on('disconnect', () => process.exit(0));
+const BOOT = Date.now();
 const emit = m => { try { if (process.send) process.send(m); } catch {} };
 const save = () => { st.seen = [...seen].slice(-3000); fs.writeFileSync(STATE, JSON.stringify(st, null, 1)); };
 const log = m => console.log(`[${new Date().toLocaleTimeString('es-ES')}] ${m}`);
@@ -214,7 +215,8 @@ async function processSig(sig, blockTime, via) {
   if (!ev) return;
   const bt = blockTime || tx.blockTime || Date.now() / 1000;
   const ageS = Date.now() / 1000 - bt;
-  if (ev.side === 'buy' && ageS > 30) { log(`compra ${ev.mint.slice(0, 6)} ignorada: detectada con ${ageS.toFixed(0)} s de retraso (>30 s)`); return; }
+  // Compras antiguas (p. ej. hechas mientras el bot se reiniciaba por una actualización): se ignoran. Solo se avisa si llegó tarde en vivo.
+  if (ev.side === 'buy' && ageS > 30) { if (Date.now() - BOOT > 60000) log(`compra ${ev.mint.slice(0, 6)} ignorada: detectada con ${ageS.toFixed(0)} s de retraso (>30 s)`); return; }
   if (ev.side === 'buy') { log(`(detectada vía ${via})`); onBuy(ev, sig, bt); } else onSell(ev);
 }
 
