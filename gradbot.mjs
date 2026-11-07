@@ -80,11 +80,13 @@ async function onGraduation(sig) {
   const size = Math.min(st.balance * FRACTION, st.balance - 0.003);
   if (size < 0.005) { log(`graduación ${mint.slice(0, 6)}: sin saldo libre`); return; }
   const lamports = Math.floor((size - PRIO) * 1e9);
+  let minPrem = Infinity;
   while (Date.now() < t0 + WAIT_TO * 1000) {
     const out = await jup(WSOL, mint, lamports);
     if (out) {
       const price = (lamports / 1e9) / (Number(out) / 1e6); // incluye comisión e impacto
       const prem = price / p0 - 1;
+      minPrem = Math.min(minPrem, prem);
       if (prem <= MAX_PREMIUM + 0.015) {
         st.balance -= size;
         st.open[mint] = { size, tokensRaw: out.toString(), p0, t0, openedAt: Date.now(), whaleSol: null, lagMs: Date.now() - t0, route: 'grad', pool: { kind: 'amm' }, rise: prem };
@@ -96,7 +98,8 @@ async function onGraduation(sig) {
     await sleep(STEP);
   }
   st.stats.noFill++; save();
-  log(`graduación ${mint.slice(0, 6)}: el precio no volvió a su nivel de nacimiento entre los 60 y 120 s (sin compra)`);
+  (st.stats.minPrems ||= []).push(Number.isFinite(minPrem) ? +minPrem.toFixed(3) : null); if (st.stats.minPrems.length > 300) st.stats.minPrems.shift();
+  log(`graduación ${mint.slice(0, 6)}: sin compra — entre los 60 y 120 s el precio más bajo estuvo ${Number.isFinite(minPrem) ? (minPrem * 100).toFixed(0) + ' %' : '?'} por encima de la referencia (límite +${((MAX_PREMIUM + 0.015) * 100).toFixed(1)} %)`);
 }
 
 async function watch(mint) {
