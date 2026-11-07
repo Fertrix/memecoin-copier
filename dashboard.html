@@ -128,7 +128,7 @@ async function load() {
   lineChart(document.getElementById('chart'), C.curve, C.start);
   // KPIs
   const all = s.copiers.flatMap(c => c.closed);
-  const lag = all.map(x => x.lagMs).filter(Boolean);
+  const lag = s.copiers.filter(c => c.name !== 'grad').flatMap(c => c.closed).map(x => x.lagMs).filter(Boolean); // el bot de graduaciones espera 60 s a propósito
   const credits = s.copiers.reduce((a, c) => a + (c.credits || 0), 0);
   const best = C.closed.length ? Math.max(...C.closed.map(x => x.ret)) : null, worst = C.closed.length ? Math.min(...C.closed.map(x => x.ret)) : null;
   const avg = C.closed.length ? C.closed.reduce((a, x) => a + x.ret, 0) / C.closed.length : null;
@@ -136,7 +136,7 @@ async function load() {
     ['Media por trade', avg == null ? '–' : `<span class="${cls(avg)}">${pct(avg)}</span>`],
     ['Mejor trade', best == null ? '–' : `<span class="up">${pct(best)}</span>`],
     ['Peor trade', worst == null ? '–' : `<span class="down">${pct(worst)}</span>`],
-    ['Retraso medio', lag.length ? (lag.reduce((a, b) => a + b, 0) / lag.length / 1000).toFixed(1) + ' s' : '–'],
+    ['Retraso al copiar', lag.length ? (lag.reduce((a, b) => a + b, 0) / lag.length / 1000).toFixed(1) + ' s' : '–'],
     ['Créditos Helius (sesión)', credits.toLocaleString('es-ES')],
   ].map(([l, v]) => `<div class="kpi"><div class="lbl">${l}</div><div class="v">${v}</div></div>`).join('');
   // Por día (cartera)
