@@ -1,7 +1,7 @@
 [
   {
     "name": "dev2",
-    "label": "Dev fuerte + token tranquilo (v2: contador en vivo)",
+    "label": "Dev fuerte (v2) · solo medición",
     "type": "dev",
     "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
     "ruleMin": 0,
@@ -9,7 +9,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.08,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "DEV_PCT": 8,
       "DECIDE_S": 30,

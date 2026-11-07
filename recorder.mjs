@@ -19,7 +19,7 @@ process.on('SIGINT', () => { flushAll('reinicio'); process.exit(0); });
 
 const toks = new Map();         // curva -> registro
 const subOf = new Map(), curveOfSub = new Map(), reqCurve = new Map();
-let ws = null, ready = false, rid = 1000, stats = { launches: 0, written: 0, skipped: 0, notif: 0 };
+let ws = null, ready = false, rid = 1000, stats = { launches: 0, written: 0, skipped: 0, notif: 0, subErr: 0 };
 
 function finish(curve, why) {
   const r = toks.get(curve); if (!r) return;
@@ -41,7 +41,7 @@ function connect() {
   ws.onopen = () => { ready = true; subOf.clear(); curveOfSub.clear(); for (const c of toks.keys()) sub(c); log(`grabadora conectada (${toks.size} curvas en seguimiento)`); };
   ws.onmessage = e => {
     let j; try { j = JSON.parse(String(e.data)); } catch { return; }
-    if (j.id && reqCurve.has(j.id)) { const c = reqCurve.get(j.id); reqCurve.delete(j.id); if (j.result == null) return; if (toks.has(c)) { subOf.set(c, j.result); curveOfSub.set(j.result, c); } else try { ws.send(JSON.stringify({ jsonrpc: '2.0', id: ++rid, method: 'accountUnsubscribe', params: [j.result] })); } catch {} return; }
+    if (j.id && reqCurve.has(j.id)) { const c = reqCurve.get(j.id); reqCurve.delete(j.id); if (j.result == null) { stats.subErr++; const r = toks.get(c); if (r) r.subErr = true; return; } if (toks.has(c)) { subOf.set(c, j.result); curveOfSub.set(j.result, c); } else try { ws.send(JSON.stringify({ jsonrpc: '2.0', id: ++rid, method: 'accountUnsubscribe', params: [j.result] })); } catch {} return; }
     const c = curveOfSub.get(j?.params?.subscription); if (!c) return;
     const r = toks.get(c); const d = j.params.result?.value?.data?.[0]; if (!r || !d) return;
     const b = Buffer.from(d, 'base64'); if (b.length < 49) return;
@@ -60,7 +60,7 @@ const realSol = r => { const x = r.s[r.s.length - 1]; return x ? x[1] / 1e9 - 30
 setInterval(() => { const now = Date.now(); for (const [c, r] of toks) {
   const limit = (r.runner || realSol(r) >= RUNNER_SOL) ? RUNNER_S : TRACK_S; if (limit === RUNNER_S) r.runner = true;
   if (now - r.t0 > limit * 1000) finish(c, 'tiempo'); else if (now - r.last > IDLE_S * (r.runner ? 6 : 1) * 1000) finish(c, 'inactivo'); } }, 5000);
-setInterval(() => log(`grabadora: ${stats.launches} lanzamientos, ${toks.size} en seguimiento, ${stats.written} guardados, ${stats.skipped} sin hueco, ${stats.notif} cambios de curva`), 10 * 60 * 1000);
+setInterval(() => log(`grabadora: ${stats.launches} lanzamientos, ${toks.size} en seguimiento, ${stats.written} guardados, ${stats.skipped} sin hueco, ${stats.notif} cambios de curva, ${stats.subErr} suscripciones fallidas`), 10 * 60 * 1000);
 
 function pp() {
   const p = new WebSocket('wss://pumpportal.fun/api/data');
