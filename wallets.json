@@ -35,7 +35,7 @@
   },
   {
     "name": "grad",
-    "label": "Graduaciones (BOOST)",
+    "label": "Graduaciones (BOOST) · solo medición",
     "type": "grad",
     "wallet": "pump.fun → PumpSwap (cuenta de migración)",
     "ruleMin": 0,
@@ -46,7 +46,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.06,
-    "cartera": true,
+    "cartera": false,
     "minPremium": -0.35,
     "slNet": 0.15
   },
