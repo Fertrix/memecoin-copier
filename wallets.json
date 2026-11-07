@@ -14,6 +14,21 @@
     "trailArm": 0.4
   },
   {
+    "name": "grad",
+    "label": "Graduaciones (BOOST) · método nuevo",
+    "type": "grad",
+    "wallet": "pump.fun → PumpSwap (cuenta de migración)",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "maxPremium": 0.05,
+    "tpNet": 0.12,
+    "holdS": 180,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.06,
+    "cartera": true
+  },
+  {
     "name": "clukz",
     "label": "clukz (KOL) · solo medición",
     "wallet": "G6fUXjMKPJzCY1rveAE6Qm7wy5U3vZgKDJmN1VPAdiZC",
