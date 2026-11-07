@@ -126,7 +126,7 @@ async function onBuy(ev, sig, txTime) {
   if (st.open[ev.mint] || pending.has(ev.mint)) return;
   pending.add(ev.mint);
   try {
-    if (ONLY_PUMP && !(ev.pool.kind === 'curva' && ev.mint.endsWith('pump') && await isPumpCurve(ev.pool.owner))) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: no es una curva de pump.fun activa (${ev.pool.kind})`); return; }
+    if (ONLY_PUMP && !(ev.pool.kind === 'curva' && ev.mint.endsWith('pump') && (ev.fast || await isPumpCurve(ev.pool.owner)))) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: no es una curva de pump.fun activa (${ev.pool.kind})`); return; }
     if ((lastSellSlot.get(ev.mint) || 0) >= ev.slot) { log(`compra ${ev.mint.slice(0, 6)} NO copiada: la ballena ya vendió después de esta compra`); return; }
     await onBuyInner(ev, sig, txTime);
   } finally {
@@ -158,15 +158,16 @@ async function onBuyInner(ev, sig, txTime) {
   const q = await jupQuote(WSOL, ev.mint, lamports);
   if (!q) return onBuyPool(ev, sig, txTime); // sin ruta en Jupiter: método de lectura directa del pool
   st.balance -= size;
-  const pIn = ev.pool.kind === 'curva' ? await poolPrice(ev.pool) : null;
-  st.open[ev.mint] = { size, tokensRaw: q.out.toString(), route: q.route, pool: ev.pool, whaleSig: sig, whaleSol: ev.sol, openedAt: Date.now(), lagMs: Date.now() - txTime * 1000, vSolEntry: pIn?.solR ?? null, peak: 1, rise: ev.rise ?? null };
+  const pIn = ev.pool.kind === 'curva' && ev.pool.owner ? await poolPrice(ev.pool) : null;
+  st.open[ev.mint] = { size, tokensRaw: q.out.toString(), route: q.route, pool: ev.pool, whaleSig: sig, whaleSol: ev.sol, openedAt: Date.now(), lagMs: Date.now() - txTime * 1000, detMs: ev.detAt ? ev.detAt - txTime * 1000 : null, fast: !!ev.fast, vSolEntry: pIn?.solR ?? null, peak: 1, rise: ev.rise ?? null };
   emit({ type: 'buy', mint: ev.mint, whaleSol: ev.sol, kind: ev.pool.kind, route: q.route, lagMs: st.open[ev.mint].lagMs });
-  log(`COMPRA copiada ${ev.mint.slice(0, 6)} vía ${q.route} | ballena ${ev.sol.toFixed(2)} SOL | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s`);
+  log(`COMPRA copiada ${ev.mint.slice(0, 6)} vía ${q.route} | ballena ${ev.sol.toFixed(2)} SOL | nosotros ${size.toFixed(4)} SOL | retraso real ${(st.open[ev.mint].lagMs / 1000).toFixed(1)} s${ev.detAt ? ` (detección ${((ev.detAt - txTime * 1000) / 1000).toFixed(1)} s, rápido)` : ''}`);
   save();
 }
 
 async function onBuyPool(ev, sig, txTime) {
   if (st.open[ev.mint]) return; // solo la primera compra
+  if (!ev.pool.owner) return log(`compra ${ev.mint.slice(0, 6)}: sin ruta en Jupiter y sin dirección de la curva, no copiada`);
   await sleep(LAT);
   let p = await poolPrice(ev.pool);
   if (!p) { await sleep(400); p = await poolPrice(ev.pool); }
@@ -228,7 +229,7 @@ async function onSellInner(ev, reason = 'espejo') {
   }
   out += pos.outSoFar || 0;
   const ret = out / pos.size - 1;
-  st.closed.push({ mint: ev.mint, ret, size: pos.size, out, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: pos.whaleSol, kind: pos.pool.kind, poolSol: pos.poolSol, rule14: pos.whaleSol >= 1 && pos.whaleSol < 4, reason, peak: pos.peak ?? null, rise: pos.rise ?? null, route: pos.route ?? null });
+  st.closed.push({ mint: ev.mint, ret, size: pos.size, out, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: pos.whaleSol, kind: pos.pool.kind, poolSol: pos.poolSol, rule14: pos.whaleSol >= 1 && pos.whaleSol < 4, reason, peak: pos.peak ?? null, rise: pos.rise ?? null, route: pos.route ?? null, detMs: pos.detMs ?? null, fast: !!pos.fast });
   emit({ type: 'sell', mint: ev.mint, ret, holdS: (Date.now() - pos.openedAt) / 1000 });
   delete st.open[ev.mint];
   const eq = st.balance + Object.values(st.open).reduce((a, o) => a + o.size, 0);
@@ -287,6 +288,7 @@ async function processSig(sig, blockTime, via) {
   for (let i = 0; i < 30 && !tx; i++) { tx = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 1, encoding: 'json', commitment: 'confirmed' }]); if (!tx) await sleep(150); }
   const ev = tx && parse(tx);
   if (!ev) return;
+  setWhale(ev.mint, ev.remaining, tx.slot);
   const bt = blockTime || tx.blockTime || Date.now() / 1000;
   const ageS = Date.now() / 1000 - bt;
   // Compras antiguas (p. ej. hechas mientras el bot se reiniciaba por una actualización): se ignoran. Solo se avisa si llegó tarde en vivo.
@@ -294,21 +296,70 @@ async function processSig(sig, blockTime, via) {
   if (ev.side === 'buy') { log(`(detectada vía ${via})`); onBuy(ev, sig, bt); } else onSell(ev);
 }
 
+// ---------- Camino RÁPIDO (curva de pump.fun) ----------
+// El aviso 'processed' del WebSocket ya trae los logs de la tx; pump.fun emite ahí un TradeEvent con token, SOL, tokens,
+// compra/venta y cartera. Así decidimos al instante, sin esperar a la confirmación ni a getTransaction (~1-3 s menos).
+const TRADE_DISC = 'bddb7fd34ee661ee'; // sha256("event:TradeEvent")[0..8]
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const b58 = b => { let x = BigInt('0x' + (Buffer.from(b).toString('hex') || '0')), s = ''; while (x > 0n) { s = B58[Number(x % 58n)] + s; x /= 58n; } for (const v of b) { if (v) break; s = '1' + s; } return s; };
+function tradeEvents(logs) {
+  const out = [];
+  for (const l of logs || []) {
+    if (!l.startsWith('Program data: ')) continue;
+    let b; try { b = Buffer.from(l.slice(14), 'base64'); } catch { continue; }
+    if (b.length < 153 || b.subarray(0, 8).toString('hex') !== TRADE_DISC) continue;
+    let o = 8; const mint = b58(b.subarray(o, o + 32)); o += 32;
+    const sol = Number(b.readBigUInt64LE(o)) / 1e9; o += 8; const tok = Number(b.readBigUInt64LE(o)) / 1e6; o += 8;
+    const isBuy = b[o] === 1; o += 1; const user = b58(b.subarray(o, o + 32)); o += 32; const ts = Number(b.readBigInt64LE(o)); o += 8;
+    const vSol = Number(b.readBigUInt64LE(o)) / 1e9; o += 24; const realTok = Number(b.readBigUInt64LE(o)) / 1e6;
+    out.push({ mint, sol, tok, isBuy, user, ts, vSol, realTok });
+  }
+  return out;
+}
+// Tokens que tiene la ballena de cada token (para ventas proporcionales); se corrige en segundo plano con el saldo real
+const whaleTok = new Map(), whaleSlot = new Map();
+// Solo acepta un saldo si viene de un bloque igual o posterior al último conocido (las correcciones llegan desordenadas)
+const setWhale = (mint, tok, slot) => { if ((whaleSlot.get(mint) || 0) > (slot || 0)) return; whaleTok.set(mint, tok); whaleSlot.set(mint, slot || 0); };
+async function reconcile(sig, mint) {
+  for (let i = 0; i < 20; i++) { const tx = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 1, encoding: 'json', commitment: 'confirmed' }]); if (tx) { const ev = parse(tx); if (ev && ev.mint === mint) setWhale(mint, ev.remaining, tx.slot); return; } await sleep(300); }
+}
+function fastPath(v, slot) {
+  const evs = tradeEvents(v.logs).filter(e => e.user === W);
+  if (evs.length !== 1 || !evs[0].mint.endsWith('pump')) return false;
+  const e = evs[0], now = Date.now();
+  seen.add(v.signature);
+  if (e.isBuy) {
+    setWhale(e.mint, (whaleTok.get(e.mint) ?? 0) + e.tok, slot);
+    reconcile(v.signature, e.mint);
+    if (!(e.realTok > 0)) return true; // curva ya completada
+    log(`(detectada vía websocket rápido, ${((now - e.ts * 1000) / 1000).toFixed(1)} s tras su tx)`);
+    onBuy({ mint: e.mint, side: 'buy', sol: e.sol, pool: { kind: 'curva', owner: null }, refVSol: e.vSol, slot, detAt: now, fast: true }, v.signature, e.ts);
+  } else {
+    const have = whaleTok.get(e.mint);
+    if (have == null) { seen.delete(v.signature); return false; } // no sabemos cuánto tenía: camino lento con su saldo real
+    const remaining = Math.max(0, have - e.tok); setWhale(e.mint, remaining, slot);
+    reconcile(v.signature, e.mint);
+    onSell({ mint: e.mint, side: 'sell', moved: e.tok, remaining, slot, fast: true });
+  }
+  return true;
+}
+
 // Suscripción en tiempo real: Solana avisa en cuanto una tx menciona a la wallet (sin esperar al sondeo)
-let wsAlive = false;
+let wsAlive = false, wsCur = null;
+setInterval(() => { try { if (wsCur?.readyState === 1) wsCur.send(JSON.stringify({ jsonrpc: '2.0', id: 99, method: 'getHealth' })); } catch {} }, 30000);
 function startWs() {
-  const ws = new WebSocket(WS_URL);
+  const ws = new WebSocket(WS_URL); wsCur = ws;
   ws.onopen = () => { wsAlive = true; ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [W] }, { commitment: 'processed' }] })); log('WebSocket conectado: detección en tiempo real'); };
   ws.onmessage = m => {
     try {
       const j = JSON.parse(String(m.data));
       const v = j?.params?.result?.value;
-      if (v?.signature && !v.err) processSig(v.signature, null, 'websocket');
+      if (!v?.signature || v.err || seen.has(v.signature)) return;
+      if (!fastPath(v, j.params.result.context?.slot || 0)) processSig(v.signature, null, 'websocket');
     } catch {}
   };
   const retry = () => { wsAlive = false; setTimeout(startWs, 3000); };
   ws.onclose = retry; ws.onerror = () => { try { ws.close(); } catch {} };
-  setInterval(() => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ jsonrpc: '2.0', id: 99, method: 'getHealth' })); } catch {} }, 30000);
 }
 // Modo PRUEBA (REPLAY=archivo.json con [{signature, blockTime}]): mete las tx reales todas a la vez y desordenadas.
 if (process.env.REPLAY) {
