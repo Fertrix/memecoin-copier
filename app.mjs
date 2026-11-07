@@ -100,13 +100,25 @@ function start(c) {
   const env = { ...process.env, WALLET: c.wallet, STATE: `data/livecopy_${c.name}.json`, RULE_MIN: String(c.ruleMin ?? 0), RULE_MAX: String(c.ruleMax ?? 1e9), MAX_RISE: String(c.maxRise ?? 1), TRAIL: String(c.trail ?? 0), TRAIL_ARM: String(c.trailArm ?? 0.4), FRACTION: String(c.fraction ?? 0.25), START_SOL: String(c.startSol ?? 0.09) };
   if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), MIN_PREMIUM: String(c.minPremium ?? -0.35), SL_NET: String(c.slNet ?? 0.15), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
   if (c.env) for (const [k, v] of Object.entries(c.env)) env[k] = String(v);
+  if (c.type === 'dev' || c.type === 'rec') env.FEED = 'ipc';
   const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : c.type === 'dev' ? 'devbot.mjs' : c.type === 'rec' ? 'recorder.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
   KIDS.add(ch);
   ch.on('message', m => { try { onEvent(c.name, m); } catch (e) { console.error('evento', e); } });
-  ch.on('exit', code => { KIDS.delete(ch); console.log(`[${c.name}] se ha parado (código ${code}); relanzando en 10 s`); setTimeout(() => start(c), 10000); });
+  if (c.type === 'dev' || c.type === 'rec') FEED_KIDS.add(ch);
+  ch.on('exit', code => { KIDS.delete(ch); FEED_KIDS.delete(ch); console.log(`[${c.name}] se ha parado (código ${code}); relanzando en 10 s`); setTimeout(() => start(c), 10000); });
 }
+// Una sola conexión a PumpPortal (lanzamientos) repartida a todos los bots que la necesitan
+const FEED_KIDS = new Set();
+function feed() {
+  const p = new WebSocket('wss://pumpportal.fun/api/data');
+  p.onopen = () => { p.send(JSON.stringify({ method: 'subscribeNewToken' })); console.log('[feed] lanzamientos de pump.fun conectados'); };
+  p.onmessage = e => { let m; try { m = JSON.parse(String(e.data)); } catch { return; } if (m.txType !== 'create') return; for (const k of FEED_KIDS) { try { k.send({ type: 'create', m }); } catch {} } };
+  p.onclose = () => setTimeout(feed, 3000);
+  p.onerror = () => { try { p.close(); } catch {} };
+}
+if (COPIERS.some(c => c.type === 'dev' || c.type === 'rec')) feed();
 for (const c of COPIERS) start(c);
 
 // ---------- Estado ----------
@@ -115,10 +127,10 @@ function status() {
   const copiers = COPIERS.map(c => {
     const s = readState(c);
     const startSol = c.startSol ?? 0.09;
-    if (!s) return { name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
+    if (!s) return { name: c.name, label: c.label || c.name, env: c.env || null, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
     const open = Object.entries(s.open).map(([mint, o]) => ({ mint, symbol: o.symbol, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs }));
     return {
-      name: c.name, label: c.label || c.name, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
+      name: c.name, label: c.label || c.name, env: c.env || null, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
       equity: s.balance + open.reduce((a, o) => a + o.size, 0),
       recent: (s.recent || []).slice(-60), closed: s.closed.map(x => ({ mint: x.mint, symbol: x.symbol, devPct: x.devPct, txs: x.txs, twitter: x.twitter, telegram: x.telegram, website: x.website, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol, reason: x.reason, rise: x.rise, peak: x.peak, route: x.route })),
       open

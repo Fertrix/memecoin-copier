@@ -11,6 +11,8 @@ const DEV_PCT = Number(process.env.DEV_PCT ?? 8);
 const DECIDE_S = Number(process.env.DECIDE_S ?? 30);
 const MAX_TXS = Number(process.env.MAX_TXS ?? 9);
 const TP = Number(process.env.TP ?? 1.0), SL = Number(process.env.SL ?? 0.25), HOLD_S = Number(process.env.HOLD_S ?? 100);
+// Salida de corredor: TP=0 desactiva el TP fijo; trailing de TRAIL desde el máximo una vez que se ha llegado a +TRAIL_ARM
+const TRAIL = Number(process.env.TRAIL ?? 0), TRAIL_ARM = Number(process.env.TRAIL_ARM ?? 0.5);
 const FEE = 0.0125, PRIO = 0.0002;
 const STATE = process.env.STATE || 'data/livecopy_dev.json';
 const RPCS = (process.env.RPC_URLS || 'https://solana-rpc.publicnode.com,https://api.mainnet-beta.solana.com').split(',');
@@ -123,7 +125,7 @@ async function onCreate(m) {
   // ¿Cuántas transacciones ha tenido la curva? (sin contar la de creación)
   // El índice de firmas de los RPC públicos va con retraso, así que se une con lo visto en vivo por WebSocket desde el lanzamiento.
   const sigs = await rpc('getSignaturesForAddress', [m.bondingCurveKey, { limit: 50, commitment: 'confirmed' }]);
-  const live = watchers.get(m.bondingCurveKey); unwatchCurve(m.bondingCurveKey);
+  const live = watchers.get(m.bondingCurveKey); const liveOk = subIds.has(m.bondingCurveKey); unwatchCurve(m.bondingCurveKey);
   pending.delete(m.mint);
   const all = new Set(live || []);
   for (const s of sigs || []) if (!s.err) all.add(s.signature);
@@ -131,6 +133,8 @@ async function onCreate(m) {
   if (!sigs && !live) { bump('sinDatos'); return; }
   const txs = all.size;
   const socials = await socialsP;
+  // Sin contador en vivo confirmado, el índice público de firmas puede ir con retraso y dar 'tranquilo' por error: no arriesgar
+  if (!liveOk && txs < MAX_TXS) { bump('sinContador'); radar({ ...base, ...socials, txs, decision: 'no: contador en vivo no confirmado' }); log(`${m.symbol || m.mint.slice(0, 6)}: contador en vivo no confirmado (${txs} txs según el índice) — no compro`); save(); return; }
   if (txs >= MAX_TXS) { radar({ ...base, ...socials, txs, decision: 'no: mucha actividad' }); bump('demasiadaActividad'); log(`${m.symbol || m.mint.slice(0, 6)}: ${txs} transacciones a los ${DECIDE_S} s (límite < ${MAX_TXS}) — no compro`); save(); return; }
   // ¿El dev sigue teniendo sus tokens? Si ya vendió, el token está "tranquilo" porque está muerto: no comprar.
   // (PublicNode no permite esta consulta: se usa el RPC oficial; si falla, no se bloquea la compra)
@@ -164,8 +168,9 @@ async function watch(mint) {
     if (c) {
       const v = sellValue(c, pos), r = v / pos.size - 1;
       pos.peak = Math.max(pos.peak, r);
-      if (pos.path.length < 120) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
-      if (r >= TP) { reason = 'TP'; back = v; break; }
+      if (pos.path.length < 240 && (HOLD_S <= 120 || Math.round((Date.now() - pos.openedAt) / 1000) % 5 === 0)) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
+      if (TP > 0 && r >= TP) { reason = 'TP'; back = v; break; }
+      if (TRAIL > 0 && pos.peak >= TRAIL_ARM && (1 + r) <= (1 + pos.peak) * (1 - TRAIL)) { reason = 'trailing'; back = v; break; }
       if (r <= -SL) { reason = 'SL'; back = v; if (Date.now() - pos.openedAt < 30000) markRug(pos.creator, pos.initialBuy, 'desplome en < 30 s tras comprar'); break; }
     }
     await sleep(1000);
@@ -188,11 +193,12 @@ for (const m of Object.keys(st.open)) watch(m);
 
 function connect() {
   const ws = new WebSocket('wss://pumpportal.fun/api/data');
-  ws.onopen = () => { ws.send(JSON.stringify({ method: 'subscribeNewToken' })); log(`Bot DEV FUERTE PAPER | saldo ${st.balance.toFixed(4)} SOL | dev >= ${DEV_PCT} % y < ${MAX_TXS} txs a los ${DECIDE_S} s | TP ${TP * 100} % SL ${SL * 100} % máx ${HOLD_S} s — escuchando lanzamientos`); };
+  ws.onopen = () => { ws.send(JSON.stringify({ method: 'subscribeNewToken' })); log(`Bot DEV FUERTE PAPER | saldo ${st.balance.toFixed(4)} SOL | dev >= ${DEV_PCT} % y < ${MAX_TXS} txs a los ${DECIDE_S} s | ${TP > 0 ? `TP ${TP * 100} %` : 'sin TP'}${TRAIL > 0 ? ` · trailing ${TRAIL * 100} % tras +${TRAIL_ARM * 100} %` : ''} SL ${SL * 100} % máx ${HOLD_S} s — escuchando lanzamientos`); };
   ws.onmessage = e => { try { const m = JSON.parse(String(e.data)); if (m.txType === 'create' && m.mint && m.bondingCurveKey) onCreate(m); } catch {} };
   ws.onclose = () => setTimeout(connect, 3000);
   ws.onerror = () => { try { ws.close(); } catch {} };
 }
-connect();
+if (process.env.FEED === 'ipc') { process.on('message', msg => { if (msg?.type === 'create' && msg.m?.txType === 'create' && msg.m.bondingCurveKey) onCreate(msg.m); }); log(`Bot DEV PAPER (lanzamientos compartidos) | saldo ${st.balance.toFixed(4)} SOL | dev >= ${DEV_PCT} % y < ${MAX_TXS} txs a los ${DECIDE_S} s | ${TP > 0 ? `TP ${TP * 100} %` : 'sin TP'}${TRAIL > 0 ? ` · trailing ${TRAIL * 100} % tras +${TRAIL_ARM * 100} %` : ''} SL ${SL * 100} % máx ${HOLD_S} s`); }
+else connect();
 setInterval(save, 60000);
 setInterval(() => log(`resumen: ${JSON.stringify(st.stats)}`), 30 * 60 * 1000);

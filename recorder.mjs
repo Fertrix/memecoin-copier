@@ -65,16 +65,19 @@ setInterval(() => log(`grabadora: ${stats.launches} lanzamientos, ${toks.size} e
 function pp() {
   const p = new WebSocket('wss://pumpportal.fun/api/data');
   p.onopen = () => { p.send(JSON.stringify({ method: 'subscribeNewToken' })); log('grabadora: escuchando lanzamientos'); };
-  p.onmessage = e => {
-    let m; try { m = JSON.parse(String(e.data)); } catch { return; }
+  p.onmessage = e => { let m; try { m = JSON.parse(String(e.data)); } catch { return; } onLaunch(m); };
+  p.onclose = () => setTimeout(pp, 3000);
+  p.onerror = () => { try { p.close(); } catch {} };
+}
+function onLaunch(m) {
+  {
     if (m.txType !== 'create' || !m.bondingCurveKey) return;
     stats.launches++;
     if (toks.size >= MAX_SUBS) { stats.skipped++; return; }
     const r = { mint: m.mint, curve: m.bondingCurveKey, creator: m.traderPublicKey, sig: m.signature, t0: Date.now(), name: m.name, symbol: m.symbol, uri: m.uri,
       devTokens: Number(m.initialBuy) || 0, devSol: Number(m.solAmount) || 0, vSol0: Number(m.vSolInBondingCurve), vTok0: Number(m.vTokensInBondingCurve), mayhem: !!m.is_mayhem_mode, pool: m.pool, s: [], last: Date.now() };
     toks.set(m.bondingCurveKey, r); sub(m.bondingCurveKey);
-  };
-  p.onclose = () => setTimeout(pp, 3000);
-  p.onerror = () => { try { p.close(); } catch {} };
+  }
 }
-pp();
+if (process.env.FEED === 'ipc') { process.on('message', msg => { if (msg?.type === 'create') onLaunch(msg.m); }); log('grabadora: lanzamientos compartidos'); }
+else pp();
