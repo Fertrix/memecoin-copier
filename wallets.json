@@ -125,7 +125,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -142,7 +143,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -159,7 +161,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -176,7 +179,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -193,7 +197,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -210,7 +215,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -227,7 +233,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -244,7 +251,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -261,7 +269,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -278,7 +287,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -295,7 +305,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   },
   {
@@ -312,7 +323,8 @@
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
       "ONLY_PUMP": "1",
-      "STATE_RESET": "2026-11-07c"
+      "STATE_RESET": "2026-11-07c",
+      "POLL_WS": "8000"
     }
   }
 ]
