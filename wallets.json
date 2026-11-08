@@ -1,7 +1,7 @@
 [
   {
     "name": "dev2",
-    "label": "Dev fuerte (v2) · solo medición",
+    "label": "Dev fuerte (v2) · MUEVE TUS 20 €",
     "type": "dev",
     "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
     "ruleMin": 0,
@@ -9,7 +9,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.08,
-    "cartera": false,
+    "cartera": true,
     "env": {
       "DEV_PCT": 8,
       "DECIDE_S": 30,
@@ -120,7 +120,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.27,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -138,7 +138,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.243,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -156,7 +156,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.169,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -174,7 +174,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.139,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -192,7 +192,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.093,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -210,7 +210,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.087,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -228,7 +228,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.049,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -246,7 +246,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.024,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -264,7 +264,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.017,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",
@@ -318,7 +318,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.005,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "PROPORTIONAL": "1",
       "MAX_HOLD_S": "1200",

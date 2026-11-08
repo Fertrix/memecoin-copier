@@ -74,7 +74,11 @@ const RESET_ID = RJ.cartera || '';
 const dayKey = () => new Date().toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' });
 const freshCart = () => ({ startedAt: Date.now(), start: START, cash: START, open: {}, closed: [], curve: [[Date.now(), START]], resetId: RESET_ID });
 let cart = fs.existsSync(CF) ? JSON.parse(fs.readFileSync(CF, 'utf8')) : freshCart();
-if (RESET_ID && cart.resetId !== RESET_ID) { console.log(`[cartera] REINICIO de la cartera a ${START} SOL (reset ${RESET_ID})`); cart = freshCart(); fs.writeFileSync(CF, JSON.stringify(cart)); }
+if (RESET_ID && cart.resetId !== RESET_ID) {
+  // el historial anterior se guarda aparte (no se borra nada)
+  try { if (fs.existsSync(CF)) fs.copyFileSync(CF, path.join(ROOT, 'data', `cartera_${(cart.resetId || 'antigua').replace(/[^\w-]/g, '')}.json`)); } catch {}
+  console.log(`[cartera] REINICIO de la cartera a ${START} SOL (reset ${RESET_ID}); historial anterior guardado aparte`); cart = freshCart(); fs.writeFileSync(CF, JSON.stringify(cart));
+}
 const saveCart = () => fs.writeFileSync(CF, JSON.stringify(cart));
 const cartEquity = () => cart.cash + Object.values(cart.open).reduce((a, o) => a + o.size, 0);
 function onEvent(name, m) {
