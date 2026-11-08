@@ -17,7 +17,8 @@
       "TP": 1,
       "SL": 0.25,
       "HOLD_S": 100,
-      "DECISION_LOG": "1"
+      "DECISION_LOG": "1",
+      "DEV_RPC": ""
     }
   },
   {
@@ -37,7 +38,8 @@
       "MAX_TXS": 9,
       "TP": 1,
       "SL": 0.25,
-      "HOLD_S": 100
+      "HOLD_S": 100,
+      "DEV_RPC": ""
     }
   },
   {
@@ -51,6 +53,29 @@
     "startSol": 0.09,
     "expected": 0.08,
     "cartera": true,
+    "env": {
+      "DEV_PCT": 8,
+      "DECIDE_S": 30,
+      "MAX_TXS": 9,
+      "TP": 0,
+      "SL": 0.25,
+      "HOLD_S": 1200,
+      "TRAIL": 0.3,
+      "TRAIL_ARM": 0.5,
+      "DEV_RPC": ""
+    }
+  },
+  {
+    "name": "devrunflux",
+    "label": "Dev fuerte + corredor · CON FLUX · medición",
+    "type": "dev",
+    "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.08,
+    "cartera": false,
     "env": {
       "DEV_PCT": 8,
       "DECIDE_S": 30,
@@ -81,7 +106,8 @@
       "SL": 0.25,
       "HOLD_S": 3600,
       "TRAIL": 0.3,
-      "TRAIL_ARM": 0.5
+      "TRAIL_ARM": 0.5,
+      "DEV_RPC": ""
     }
   },
   {
@@ -103,7 +129,8 @@
       "SL": 0.25,
       "HOLD_S": 1200,
       "TRAIL": 0.3,
-      "TRAIL_ARM": 0.5
+      "TRAIL_ARM": 0.5,
+      "DEV_RPC": ""
     }
   },
   {
