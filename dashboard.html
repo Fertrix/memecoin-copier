@@ -96,7 +96,7 @@
 
   </div>
   <div id="vTest" style="display:none">
-  <h3 id="copias">👥 Prueba por cartera — cada una con su propio saldo de 0,09 SOL</h3>
+  <h3 id="copias">👥 Copy trading (apagado)</h3>
   <div class="sub" style="margin:-4px 0 10px">Sirve para saber qué carteras ganan copiándolas. No es tu dinero: son 12 cuentas de prueba separadas.</div>
   <div class="card" id="copySum"></div>
   <div class="grid" id="cardsCopy"></div>
@@ -230,7 +230,7 @@ async function load() {
   document.getElementById('cardsCopy').innerHTML = [...copies].sort((a, b) => gain(b) - gain(a)).map(card).join('');
   document.getElementById('cards').innerHTML = others.map(card).join('');
   const tg = copies.reduce((a, c) => a + gain(c), 0), tn = copies.reduce((a, c) => a + c.closed.length, 0), tw = copies.reduce((a, c) => a + c.closed.filter(x => x.ret > 0).length, 0);
-  document.getElementById('copySum').innerHTML = `<div class="row money"><span>Las 12 juntas: <b class="${cls(tg)}">${solE(tg, E)}</b></span><span>Operaciones <b>${tn}</b></span><span>Ganadoras <b>${tn ? Math.round(tw / tn * 100) : 0} %</b></span><span>Ganando: <b>${copies.filter(c => gain(c) > 0.00005).map(c => esc(c.label.replace(/^Copia /, '').replace(/ ·.*$/, ''))).join(', ') || '–'}</b></span><span>Perdiendo: <b>${copies.filter(c => gain(c) < -0.00005).map(c => esc(c.label.replace(/^Copia /, '').replace(/ ·.*$/, ''))).join(', ') || '–'}</b></span></div>`;
+  if (!copies.length) document.getElementById('copySum').innerHTML = '<div class="sub">Copy trading apagado: no ganó en las pruebas (ni en vivo ni con el 6 de noviembre). La configuración queda guardada por si se quiere volver.</div>'; else document.getElementById('copySum').innerHTML = `<div class="row money"><span>Las 12 juntas: <b class="${cls(tg)}">${solE(tg, E)}</b></span><span>Operaciones <b>${tn}</b></span><span>Ganadoras <b>${tn ? Math.round(tw / tn * 100) : 0} %</b></span><span>Ganando: <b>${copies.filter(c => gain(c) > 0.00005).map(c => esc(c.label.replace(/^Copia /, '').replace(/ ·.*$/, ''))).join(', ') || '–'}</b></span><span>Perdiendo: <b>${copies.filter(c => gain(c) < -0.00005).map(c => esc(c.label.replace(/^Copia /, '').replace(/ ·.*$/, ''))).join(', ') || '–'}</b></span></div>`;
   // Radar
   const rec = s.copiers.flatMap(c => c.recent || []).sort((a, b) => b.at - a.at).slice(0, 40);
   document.querySelector('#radarT tbody').innerHTML = rec.map(x => `<tr><td>${hhmm(x.at)}</td><td>${tokenCell(x.mint, x.symbol)} <span class="sub">${esc((x.name || '').slice(0, 28))}</span></td><td>${x.devPct} %</td><td>${x.txs}</td><td>${socials(x)}</td><td class="${x.decision === 'COMPRA' ? 'dec-buy' : 'sub'}">${x.decision === 'COMPRA' ? '🟡 COMPRA' : esc(x.decision)}</td></tr>`).join('') || '<tr><td colspan="6" class="sub">Esperando lanzamientos con dev fuerte…</td></tr>';

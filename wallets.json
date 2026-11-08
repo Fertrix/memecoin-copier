@@ -127,7 +127,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_9fR8g",
@@ -145,7 +146,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_4cgRq",
@@ -163,7 +165,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_9ecRd",
@@ -181,7 +184,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_Huftd",
@@ -199,7 +203,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_GJA1H",
@@ -217,7 +222,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_4opeQ",
@@ -235,7 +241,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_HbCxe",
@@ -253,7 +260,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_GM7Hr",
@@ -271,7 +279,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_D9gQ6",
@@ -289,7 +298,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_C4eNL",
@@ -307,7 +317,8 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   },
   {
     "name": "cp_5B79f",
@@ -325,6 +336,7 @@
       "ONLY_PUMP": "1",
       "STATE_RESET": "2026-11-07c",
       "POLL_WS": "8000"
-    }
+    },
+    "off": true
   }
 ]

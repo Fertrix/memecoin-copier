@@ -36,7 +36,8 @@ if (fs.existsSync(ENVF)) {
 }
 if (!process.env.HELIUS_API_KEY) console.log('Sin HELIUS_API_KEY: se usan solo RPCs públicos gratuitos (PublicNode y el oficial de Solana).');
 
-const COPIERS = JSON.parse(fs.readFileSync(path.join(DIR, 'wallets.json'), 'utf8'));
+// Las entradas con "off": true quedan guardadas en wallets.json pero no se arrancan
+const COPIERS = JSON.parse(fs.readFileSync(path.join(DIR, 'wallets.json'), 'utf8')).filter(c => !c.off);
 const BOOT = Date.now();
 let EUR_PER_SOL = Number(process.env.EUR_PER_SOL || 82), EUR_AT = 0, EUR_SRC = 'fijo';
 // Precio real de SOL en euros cada minuto (CoinGecko gratis; Binance de respaldo). Si ambos fallan se mantiene el último.
