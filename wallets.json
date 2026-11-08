@@ -1,7 +1,7 @@
 [
   {
     "name": "dev2",
-    "label": "Dev fuerte (v2) · MUEVE TUS 20 €",
+    "label": "Dev fuerte (v2) · solo medición",
     "type": "dev",
     "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
     "ruleMin": 0,
@@ -9,14 +9,15 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.08,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "DEV_PCT": 8,
       "DECIDE_S": 30,
       "MAX_TXS": 9,
       "TP": 1,
       "SL": 0.25,
-      "HOLD_S": 100
+      "HOLD_S": 100,
+      "DECISION_LOG": "1"
     }
   },
   {
@@ -41,7 +42,7 @@
   },
   {
     "name": "devrun",
-    "label": "Dev fuerte + salida corredor · medición",
+    "label": "Dev fuerte + salida corredor · MUEVE TUS 20 €",
     "type": "dev",
     "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
     "ruleMin": 0,
@@ -49,7 +50,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.08,
-    "cartera": false,
+    "cartera": true,
     "env": {
       "DEV_PCT": 8,
       "DECIDE_S": 30,

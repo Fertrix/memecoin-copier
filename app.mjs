@@ -83,7 +83,8 @@ if (RESET_ID && cart.resetId !== RESET_ID) {
 const saveCart = () => fs.writeFileSync(CF, JSON.stringify(cart));
 const cartEquity = () => cart.cash + Object.values(cart.open).reduce((a, o) => a + o.size, 0);
 function onEvent(name, m) {
-  if (COPIERS.find(c => c.name === name)?.cartera === false) return; // solo estrategias validadas mueven la cartera única
+  // solo estrategias validadas ABREN en la cartera única; las ventas de posiciones ya abiertas siempre se aplican
+  if (COPIERS.find(c => c.name === name)?.cartera === false && !(m.type === 'sell' && cart.open[`${name}:${m.mint}`])) return;
   const key = `${name}:${m.mint}`;
   if (m.type === 'buy') {
     // Tope de pérdida diaria (hora de Madrid): si la cartera cae DAILY_LOSS desde el inicio del día, no abre más hasta mañana
@@ -229,6 +230,8 @@ http.createServer((req, res) => {
   if (u.pathname === '/api/rec') { const d = path.join(ROOT, 'data', 'rec'); let files = []; try { files = fs.readdirSync(d).filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).map(f => ({ f, bytes: fs.statSync(path.join(d, f)).size })); } catch {} return json(res, files); }
   const recM = u.pathname.match(/^\/api\/rec\/(\d{4}-\d{2}-\d{2}\.jsonl)$/);
   if (recM) { const f = path.join(ROOT, 'data', 'rec', recM[1]); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store' }); return fs.createReadStream(f).pipe(zlib.createGzip()).pipe(res); }
+  // Decisiones de dev fuerte (máquina del tiempo exacta), solo lectura y pública
+  if (u.pathname === '/api/devlog') { const f = path.join(ROOT, 'data', 'dev_decisions.jsonl'); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store' }); return fs.createReadStream(f).pipe(zlib.createGzip()).pipe(res); }
   // Login
   if (u.pathname === '/login' && req.method === 'POST') {
     const f = failed.get(ip) || { n: 0, until: 0 };
