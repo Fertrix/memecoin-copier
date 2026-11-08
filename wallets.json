@@ -63,6 +63,28 @@
     }
   },
   {
+    "name": "devrun60",
+    "label": "Dev fuerte + corredor · aguanta hasta 60 min · medición",
+    "type": "dev",
+    "wallet": "pump.fun · lanzamientos (PumpPortal gratis)",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "fraction": 0.25,
+    "startSol": 0.09,
+    "expected": 0.08,
+    "cartera": false,
+    "env": {
+      "DEV_PCT": 8,
+      "DECIDE_S": 30,
+      "MAX_TXS": 9,
+      "TP": 0,
+      "SL": 0.25,
+      "HOLD_S": 3600,
+      "TRAIL": 0.3,
+      "TRAIL_ARM": 0.5
+    }
+  },
+  {
     "name": "dev12run",
     "label": "Dev MUY fuerte + salida corredor · medición",
     "type": "dev",
