@@ -127,6 +127,7 @@ function rugReason(m) {
 }
 
 const LAT_BUY = Number(process.env.LAT_BUY ?? 800);
+const RENT = 0.00204; // alquiler de la cuenta de tokens: se bloquea al comprar y se devuelve al vender
 const pending = new Map();
 async function onCreate(m) {
   const devPct = (Number(m.initialBuy) || 0) / 1e9 * 100;
@@ -171,13 +172,13 @@ async function onCreate(m) {
   await sleep(LAT_BUY); // la compra real tarda ~1-2 bloques en entrar: se paga el precio de ese momento
   const c = await curve(m.bondingCurveKey);
   if (!c || c.complete) return;
-  const size = Math.min(st.balance * FRACTION, st.balance - 0.003);
+  const size = Math.min(st.balance * FRACTION, st.balance - 0.003 - RENT);
   if (size < 0.005) { log('sin saldo libre'); return; }
   const sinLam = Math.floor((size * (1 - FEE) - PRIO) * 1e9);
   const tokens = c.vTok - (c.vSol * c.vTok) / (c.vSol + sinLam);
-  st.balance -= size;
+  st.balance -= size + RENT; // + alquiler de la cuenta del token (se recupera al vender: cierre en la misma transacción)
   radar({ ...base, ...socials, txs, decision: 'COMPRA' });
-  const pos = st.open[m.mint] = { size, tokens, shiftLam: sinLam, curve: m.bondingCurveKey, openedAt: Date.now(), devPct, txs, creator: m.traderPublicKey, initialBuy: m.initialBuy, symbol: m.symbol, name: m.name, ...socials, lagMs: Date.now() - seenAt - DECIDE_S * 1000, peak: 0, path: [] };
+  const pos = st.open[m.mint] = { size, rent: RENT, tokens, shiftLam: sinLam, curve: m.bondingCurveKey, openedAt: Date.now(), devPct, txs, creator: m.traderPublicKey, initialBuy: m.initialBuy, symbol: m.symbol, name: m.name, ...socials, lagMs: Date.now() - seenAt - DECIDE_S * 1000, peak: 0, path: [] };
   log(`COMPRA ${m.symbol || m.mint.slice(0, 6)} | dev ${devPct.toFixed(1)} % | ${txs} txs a los ${DECIDE_S} s | ${size.toFixed(4)} SOL`);
   emit({ type: 'buy', mint: m.mint, symbol: m.symbol, name: m.name, whaleSol: null, kind: 'dev', route: 'pump', lagMs: pos.lagMs });
   save();
@@ -209,7 +210,7 @@ async function watch(mint) {
   else { const j = await jupSell(mint, Math.floor(pos.tokens)); if (j != null) back = Math.max(0, j - PRIO); }
   back ??= 0;
   const ret = back / pos.size - 1;
-  st.balance += back;
+  st.balance += back + (pos.rent ?? 0);
   st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: null, kind: 'dev', reason, rise: null, peak: pos.peak, route: 'pump', devPct: pos.devPct, txs: pos.txs, path: pos.path, symbol: pos.symbol, name: pos.name, twitter: pos.twitter, telegram: pos.telegram, website: pos.website });
   delete st.open[mint];
   emit({ type: 'sell', mint, ret, size: pos.size, holdS: (Date.now() - pos.openedAt) / 1000, symbol: pos.symbol });

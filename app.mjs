@@ -82,7 +82,8 @@ if (RESET_ID && cart.resetId !== RESET_ID) {
 }
 let cartBak = 0;
 const saveCart = () => { fs.writeFileSync(CF + '.tmp', JSON.stringify(cart)); fs.renameSync(CF + '.tmp', CF); if (Date.now() - cartBak > 600000) { cartBak = Date.now(); try { fs.copyFileSync(CF, CF + '.bak'); } catch {} } };
-const cartEquity = () => cart.cash + Object.values(cart.open).reduce((a, o) => a + o.size, 0);
+const RENT = 0.00204; // alquiler de la cuenta de tokens (bloqueado mientras la posición está abierta, se recupera al vender)
+const cartEquity = () => cart.cash + Object.values(cart.open).reduce((a, o) => a + o.size + (o.rent ?? 0), 0);
 function onEvent(name, m) {
   // solo estrategias validadas ABREN en la cartera única; las ventas de posiciones ya abiertas siempre se aplican
   if (COPIERS.find(c => c.name === name)?.cartera === false && !(m.type === 'sell' && cart.open[`${name}:${m.mint}`])) return;
@@ -94,10 +95,10 @@ function onEvent(name, m) {
     if (cart.dayStopped) return;
     if (Object.values(cart.open).some(o => o.mint === m.mint)) { console.log(`[cartera] ya hay una posición en ${m.mint.slice(0, 6)}, no se duplica`); return; }
     if (Object.keys(cart.open).length >= MAX_OPEN) { console.log(`[cartera] ya hay ${MAX_OPEN} posiciones abiertas, no copio ${name} ${m.mint.slice(0, 6)}`); return; }
-    const size = Math.min(cart.cash * SHARED_FRACTION, MAX_TRADE_SOL, cart.cash - 0.003);
+    const size = Math.min(cart.cash * SHARED_FRACTION, MAX_TRADE_SOL, cart.cash - 0.003 - RENT);
     if (size < MIN_TRADE) { console.log(`[cartera] operación de ${size.toFixed(4)} SOL por debajo del mínimo (${MIN_TRADE}), no copio ${name} ${m.mint.slice(0, 6)}`); return; }
-    cart.cash -= size;
-    cart.open[key] = { name, mint: m.mint, symbol: m.symbol, size, at: Date.now(), whaleSol: m.whaleSol, route: m.route };
+    cart.cash -= size + RENT; // + alquiler de la cuenta del token, se devuelve al vender
+    cart.open[key] = { rent: RENT, name, mint: m.mint, symbol: m.symbol, size, at: Date.now(), whaleSol: m.whaleSol, route: m.route };
     console.log(`[cartera] COMPRA ${name} ${m.mint.slice(0, 6)} con ${size.toFixed(4)} SOL`);
     discord(`🟢 **${name}** compró ${m.whaleSol?.toFixed(2)} SOL de \`${m.mint.slice(0, 6)}\` → copiamos ${size.toFixed(4)} SOL (retraso ${(m.lagMs / 1000).toFixed(1)} s)`);
   } else if (m.type === 'sell') {
@@ -105,7 +106,7 @@ function onEvent(name, m) {
     delete cart.open[key];
     const adj = m.size ? 0.0004 / m.size - 0.0004 / o.size : 0; // prioridad fija (compra + venta) sobre el tamaño de cada uno
     const back = Math.max(0, o.size * (1 + m.ret + adj));
-    cart.cash += back;
+    cart.cash += back + (o.rent ?? 0);
     cart.closed.push({ name, mint: m.mint, symbol: o.symbol || m.symbol, size: o.size, ret: m.ret, pnl: back - o.size, at: Date.now(), holdS: m.holdS });
     const eq = cartEquity();
     cart.curve.push([Date.now(), eq]);
@@ -180,11 +181,11 @@ function status() {
     const s = readState(c);
     const startSol = c.startSol ?? 0.09;
     if (!s) return { name: c.name, label: c.label || c.name, env: c.env || null, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, equity: startSol, closed: [], open: [], credits: 0 };
-    const open = Object.entries(s.open).map(([mint, o]) => ({ mint, symbol: o.symbol, size: o.size, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs, markSol: o.markSol ?? null, markAt: o.markAt ?? null, outSoFar: o.outSoFar || 0 }));
+    const open = Object.entries(s.open).map(([mint, o]) => ({ mint, symbol: o.symbol, size: o.size, rent: o.rent ?? 0, whaleSol: o.whaleSol, route: o.route || o.pool?.kind, openedAt: o.openedAt, lagMs: o.lagMs, markSol: o.markSol ?? null, markAt: o.markAt ?? null, outSoFar: o.outSoFar || 0 }));
     return {
       name: c.name, label: c.label || c.name, env: c.env || null, wallet: c.wallet, rule: [c.ruleMin, c.ruleMax], maxRise: c.maxRise ?? null, trail: c.trail ?? 0, trailArm: c.trailArm ?? 0.4, inCartera: c.cartera !== false, type: c.type, maxPremium: c.maxPremium, minPremium: c.minPremium, tpNet: c.tpNet, slNet: c.slNet, holdS: c.holdS, expected: c.expected ?? null, startSol, startedAt: s.startedAt, credits: s.credits || 0,
-      equity: s.balance + open.reduce((a, o) => a + o.size, 0),
-      equityLive: s.balance + open.reduce((a, o) => a + (o.markSol != null ? o.markSol : o.size), 0),
+      equity: s.balance + open.reduce((a, o) => a + o.size + o.rent, 0),
+      equityLive: s.balance + open.reduce((a, o) => a + (o.markSol != null ? o.markSol : o.size) + o.rent, 0),
       recent: (s.recent || []).slice(-60), closed: s.closed.map(x => ({ mint: x.mint, symbol: x.symbol, devPct: x.devPct, txs: x.txs, twitter: x.twitter, telegram: x.telegram, website: x.website, ret: x.ret, size: x.size, out: x.out, at: x.at, holdS: x.holdS, lagMs: x.lagMs, whaleSol: x.whaleSol, reason: x.reason, rise: x.rise, peak: x.peak, route: x.route })),
       open
     };
@@ -194,7 +195,7 @@ function status() {
     cartera: (() => {
       // valor EN VIVO de las posiciones abiertas de la cartera: misma subida/bajada que la posición de la estrategia que la abrió
       const open = Object.values(cart.open).map(o => { const s = readState({ name: o.name }); const p = s?.open?.[o.mint]; const ratio = p && p.markSol != null && p.size ? p.markSol / p.size : null; return { ...o, markSol: ratio != null ? o.size * ratio : null, markAt: p?.markAt ?? null }; });
-      return { start: cart.start, startedAt: cart.startedAt, cash: cart.cash, equity: cartEquity(), equityLive: cart.cash + open.reduce((x, o) => x + (o.markSol ?? o.size), 0), fraction: SHARED_FRACTION, maxTrade: MAX_TRADE_SOL, maxOpen: MAX_OPEN, minTrade: MIN_TRADE, dailyLoss: DAILY_LOSS, dayStopped: !!cart.dayStopped, open, closed: cart.closed.slice(-200), curve: cart.curve.slice(-1500), nClosed: cart.closed.length, wins: cart.closed.filter(x => x.ret > 0).length };
+      return { start: cart.start, startedAt: cart.startedAt, cash: cart.cash, equity: cartEquity(), equityLive: cart.cash + open.reduce((x, o) => x + (o.markSol ?? o.size) + (o.rent ?? 0), 0), fraction: SHARED_FRACTION, maxTrade: MAX_TRADE_SOL, maxOpen: MAX_OPEN, minTrade: MIN_TRADE, dailyLoss: DAILY_LOSS, dayStopped: !!cart.dayStopped, open, closed: cart.closed.slice(-200), curve: cart.curve.slice(-1500), nClosed: cart.closed.length, wins: cart.closed.filter(x => x.ret > 0).length };
     })(),
     copiers
   };
