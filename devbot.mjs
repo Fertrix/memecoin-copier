@@ -90,6 +90,7 @@ async function meta(uri) {
 st.recent ||= [];
 // MÁQUINA DEL TIEMPO EXACTA: con DECISION_LOG=1 cada decisión (compra o descarte y su motivo) se guarda para siempre en
 // data/dev_decisions.jsonl; junto con la grabadora permite re-simular cualquier filtro o salida sobre los mismos candidatos.
+log(`comprobación del dev: ${process.env.DEV_RPC ? 'RPC propio (DEV_RPC) + oficial de respaldo' : 'solo RPC oficial'}`);
 const DLOG = process.env.DECISION_LOG === '1' ? process.cwd() + '/data/dev_decisions.jsonl' : null;
 function radar(x) {
   st.recent.push({ at: Date.now(), ...x }); if (st.recent.length > 80) st.recent.splice(0, st.recent.length - 80);
@@ -153,9 +154,10 @@ async function onCreate(m) {
   // (PublicNode no permite esta consulta: se usa el RPC oficial; si falla, no se bloquea la compra)
   let devAcc = null;
   const DEV_RPCS = [process.env.DEV_RPC, 'https://api.mainnet-beta.solana.com'].filter(Boolean);
+  const devT0 = Date.now();
   for (let i = 0; i < 3 && !devAcc; i++) { try { const r = await fetch(DEV_RPCS[i % DEV_RPCS.length], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getTokenAccountsByOwner', params: [m.traderPublicKey, { mint: m.mint }, { encoding: 'jsonParsed', commitment: 'processed' }] }), signal: AbortSignal.timeout(6000) }); const j = await r.json(); devAcc = j.result || null; } catch {} if (!devAcc) await sleep(400); }
   const devNow = (devAcc?.value || []).reduce((a, x) => a + Number(x.account?.data?.parsed?.info?.tokenAmount?.uiAmount || 0), 0);
-  base.devNowPct = devAcc ? +(devNow / 1e7).toFixed(2) : null; base.initialBuy = Number(m.initialBuy);
+  base.devNowPct = devAcc ? +(devNow / 1e7).toFixed(2) : null; base.devMs = Date.now() - devT0; base.initialBuy = Number(m.initialBuy);
   if (devAcc && devNow < Number(m.initialBuy) * 0.9) { markRug(m.traderPublicKey, m.initialBuy, 'dev vendió en < 30 s'); bump('devVendio'); radar({ ...base, ...socials, txs, decision: 'no: el dev ya vendió' }); log(`${m.symbol || m.mint.slice(0, 6)}: el dev ya vendió (le queda ${(devNow / 1e7).toFixed(1)} % de ${devPct.toFixed(1)} %) — no compro`); save(); return; }
   const rr = rugReason(m);
   if (rr) { bump('antiRug'); radar({ ...base, ...socials, txs, decision: 'no: ' + rr }); log(`${m.symbol || m.mint.slice(0, 6)}: ${rr} — no compro`); save(); return; }
