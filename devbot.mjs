@@ -185,6 +185,8 @@ async function watch(mint) {
     if (c) {
       const v = sellValue(c, pos), r = v / pos.size - 1;
       pos.peak = Math.max(pos.peak, r);
+      pos.markSol = v; pos.markAt = Date.now(); // valor en tiempo real para el panel
+      if (!pos.lastSave || Date.now() - pos.lastSave > 10000) { pos.lastSave = Date.now(); save(); }
       if (pos.path.length < 240 && (HOLD_S <= 120 || Math.round((Date.now() - pos.openedAt) / 1000) % 5 === 0)) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
       if (TP > 0 && r >= TP) { reason = 'TP'; back = v; break; }
       if (TRAIL > 0 && pos.peak >= TRAIL_ARM && (1 + r) <= (1 + pos.peak) * (1 - TRAIL)) { reason = 'trailing'; back = v; break; }
