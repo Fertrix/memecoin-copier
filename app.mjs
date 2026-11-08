@@ -188,7 +188,11 @@ function status() {
   });
   return {
     now: Date.now(), bootAt: BOOT, version: process.env.APP_VERSION || 'local', errors: ERR.length, eurPerSol: EUR_PER_SOL, eurAt: EUR_AT, eurSrc: EUR_SRC, goalEur: GOAL_EUR,
-    cartera: { start: cart.start, startedAt: cart.startedAt, cash: cart.cash, equity: cartEquity(), fraction: SHARED_FRACTION, maxTrade: MAX_TRADE_SOL, maxOpen: MAX_OPEN, minTrade: MIN_TRADE, dailyLoss: DAILY_LOSS, dayStopped: !!cart.dayStopped, open: Object.values(cart.open), closed: cart.closed.slice(-200), curve: cart.curve.slice(-1500), nClosed: cart.closed.length, wins: cart.closed.filter(x => x.ret > 0).length },
+    cartera: (() => {
+      // valor EN VIVO de las posiciones abiertas de la cartera: misma subida/bajada que la posición de la estrategia que la abrió
+      const open = Object.values(cart.open).map(o => { const s = readState({ name: o.name }); const p = s?.open?.[o.mint]; const ratio = p && p.markSol != null && p.size ? p.markSol / p.size : null; return { ...o, markSol: ratio != null ? o.size * ratio : null, markAt: p?.markAt ?? null }; });
+      return { start: cart.start, startedAt: cart.startedAt, cash: cart.cash, equity: cartEquity(), equityLive: cart.cash + open.reduce((x, o) => x + (o.markSol ?? o.size), 0), fraction: SHARED_FRACTION, maxTrade: MAX_TRADE_SOL, maxOpen: MAX_OPEN, minTrade: MIN_TRADE, dailyLoss: DAILY_LOSS, dayStopped: !!cart.dayStopped, open, closed: cart.closed.slice(-200), curve: cart.curve.slice(-1500), nClosed: cart.closed.length, wins: cart.closed.filter(x => x.ret > 0).length };
+    })(),
     copiers
   };
 }

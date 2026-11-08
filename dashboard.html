@@ -173,9 +173,10 @@ async function load() {
   const E = s.eurPerSol, C = s.cartera;
   document.getElementById('solp').textContent = `1 SOL = ${E.toFixed(2)} €` + (s.eurAt ? ` · ${s.eurSrc} hace ${ago(s.eurAt)}` : ' · precio fijo');
   // Cartera única
-  const res = C.equity / C.start - 1, profitEur = (C.equity - C.start) * E;
-  document.getElementById('cEq').textContent = C.equity.toFixed(4) + ' SOL';
-  document.getElementById('cEur').textContent = '≈ ' + eur(C.equity, E) + ' · empezó con ' + C.start + ' SOL (' + eur(C.start, E) + ') · ' + Math.round(C.fraction * 100) + ' % del saldo libre por trade · máx ' + (C.maxOpen ?? '–') + ' a la vez · mínimo ' + (C.minTrade ?? 0.005) + ' SOL · tope diario −' + Math.round((C.dailyLoss ?? 1) * 100) + ' %' + (C.dayStopped ? ' · ⛔ PARADA HOY por el tope diario' : '');
+  const EQ = C.equityLive ?? C.equity; // incluye el valor en vivo de las posiciones abiertas
+  const res = EQ / C.start - 1, profitEur = (EQ - C.start) * E;
+  document.getElementById('cEq').textContent = EQ.toFixed(4) + ' SOL';
+  document.getElementById('cEur').textContent = '≈ ' + eur(EQ, E) + ' · empezó con ' + C.start + ' SOL (' + eur(C.start, E) + ') · ' + Math.round(C.fraction * 100) + ' % del saldo libre por trade · máx ' + (C.maxOpen ?? '–') + ' a la vez · mínimo ' + (C.minTrade ?? 0.005) + ' SOL · tope diario −' + Math.round((C.dailyLoss ?? 1) * 100) + ' %' + (C.dayStopped ? ' · ⛔ PARADA HOY por el tope diario' : '');
   document.getElementById('cRes').innerHTML = `<span class="${cls(res)}">${pct(res)}</span> <span class="sub">${profitEur >= 0 ? '+' : ''}${profitEur.toFixed(2)} €</span>`;
   document.getElementById('cTr').textContent = `${C.nClosed} · ${C.nClosed ? Math.round(C.wins / C.nClosed * 100) : 0} % ganadores`;
   document.getElementById('cOpen').textContent = C.open.length;
@@ -235,7 +236,7 @@ async function load() {
   const rec = s.copiers.flatMap(c => c.recent || []).sort((a, b) => b.at - a.at).slice(0, 40);
   document.querySelector('#radarT tbody').innerHTML = rec.map(x => `<tr><td>${hhmm(x.at)}</td><td>${tokenCell(x.mint, x.symbol)} <span class="sub">${esc((x.name || '').slice(0, 28))}</span></td><td>${x.devPct} %</td><td>${x.txs}</td><td>${socials(x)}</td><td class="${x.decision === 'COMPRA' ? 'dec-buy' : 'sub'}">${x.decision === 'COMPRA' ? '🟡 COMPRA' : esc(x.decision)}</td></tr>`).join('') || '<tr><td colspan="6" class="sub">Esperando lanzamientos con dev fuerte…</td></tr>';
   // Últimos trades
-  document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => `<tr><td>${hhmm(o.at)}</td><td>${esc(o.name.replace(/^cp_/, ''))}</td><td>${tokenCell(o.mint, o.symbol)}</td><td>${o.size.toFixed(4)}</td><td class="sub">abierta</td><td></td><td>${ago(o.at)}</td></tr>`),
+  document.querySelector('#trades tbody').innerHTML = [...C.open.map(o => { const u = o.markSol != null ? o.markSol - o.size : null; return `<tr><td>${hhmm(o.at)}</td><td>${esc(o.name.replace(/^cp_/, ''))}</td><td>${tokenCell(o.mint, o.symbol)}</td><td>${o.size.toFixed(4)}</td><td class="${u == null ? 'sub' : cls(u)}">${u == null ? 'abierta' : 'abierta ' + pct(u / o.size)}</td><td class="${u == null ? '' : cls(u)}">${u == null ? '' : solE(u, E)}</td><td>${ago(o.at)}</td></tr>`; }),
     ...C.closed.slice(-25).reverse().map(x => `<tr><td>${hhmm(x.at)}</td><td>${esc(x.name.replace(/^cp_/, ''))}</td><td>${tokenCell(x.mint, x.symbol)}</td><td>${x.size.toFixed(4)}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="${cls(x.pnl)}">${solE(x.pnl, E)}</td><td>${dur(x.holdS)}</td></tr>`)].join('') || '<tr><td colspan="7" class="sub">Aún sin trades</td></tr>';
   document.getElementById('upd').textContent = 'en vivo · ' + new Date(s.now).toLocaleTimeString('es-ES');
   if (s.auth) document.getElementById('logout').style.display = '';
