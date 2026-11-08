@@ -74,13 +74,14 @@ const MAX_OPEN = Number(RJ.maxOpen ?? 99), MIN_TRADE = Number(RJ.minTrade ?? 0.0
 const RESET_ID = RJ.cartera || '';
 const dayKey = () => new Date().toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' });
 const freshCart = () => ({ startedAt: Date.now(), start: START, cash: START, open: {}, closed: [], curve: [[Date.now(), START]], resetId: RESET_ID });
-let cart = fs.existsSync(CF) ? JSON.parse(fs.readFileSync(CF, 'utf8')) : freshCart();
+let cart = (() => { for (const f of [CF, CF + '.bak']) { try { if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { console.log(`[cartera] archivo ilegible ${f}, pruebo la copia`); } } return freshCart(); })();
 if (RESET_ID && cart.resetId !== RESET_ID) {
   // el historial anterior se guarda aparte (no se borra nada)
   try { if (fs.existsSync(CF)) fs.copyFileSync(CF, path.join(ROOT, 'data', `cartera_${(cart.resetId || 'antigua').replace(/[^\w-]/g, '')}.json`)); } catch {}
   console.log(`[cartera] REINICIO de la cartera a ${START} SOL (reset ${RESET_ID}); historial anterior guardado aparte`); cart = freshCart(); fs.writeFileSync(CF, JSON.stringify(cart));
 }
-const saveCart = () => fs.writeFileSync(CF, JSON.stringify(cart));
+let cartBak = 0;
+const saveCart = () => { fs.writeFileSync(CF + '.tmp', JSON.stringify(cart)); fs.renameSync(CF + '.tmp', CF); if (Date.now() - cartBak > 600000) { cartBak = Date.now(); try { fs.copyFileSync(CF, CF + '.bak'); } catch {} } };
 const cartEquity = () => cart.cash + Object.values(cart.open).reduce((a, o) => a + o.size, 0);
 function onEvent(name, m) {
   // solo estrategias validadas ABREN en la cartera única; las ventas de posiciones ya abiertas siempre se aplican
@@ -91,6 +92,7 @@ function onEvent(name, m) {
     if (cart.day !== dayKey()) { cart.day = dayKey(); cart.dayStart = cartEquity(); cart.dayStopped = false; }
     if (!cart.dayStopped && cartEquity() < cart.dayStart * (1 - DAILY_LOSS)) { cart.dayStopped = true; console.log(`[cartera] TOPE DIARIO: −${Math.round(DAILY_LOSS * 100)} % hoy, no se abre nada más hasta mañana`); saveCart(); }
     if (cart.dayStopped) return;
+    if (Object.values(cart.open).some(o => o.mint === m.mint)) { console.log(`[cartera] ya hay una posición en ${m.mint.slice(0, 6)}, no se duplica`); return; }
     if (Object.keys(cart.open).length >= MAX_OPEN) { console.log(`[cartera] ya hay ${MAX_OPEN} posiciones abiertas, no copio ${name} ${m.mint.slice(0, 6)}`); return; }
     const size = Math.min(cart.cash * SHARED_FRACTION, MAX_TRADE_SOL, cart.cash - 0.003);
     if (size < MIN_TRADE) { console.log(`[cartera] operación de ${size.toFixed(4)} SOL por debajo del mínimo (${MIN_TRADE}), no copio ${name} ${m.mint.slice(0, 6)}`); return; }
@@ -101,7 +103,8 @@ function onEvent(name, m) {
   } else if (m.type === 'sell') {
     const o = cart.open[key]; if (!o) return;
     delete cart.open[key];
-    const back = Math.max(0, o.size * (1 + m.ret));
+    const adj = m.size ? 0.0004 / m.size - 0.0004 / o.size : 0; // prioridad fija (compra + venta) sobre el tamaño de cada uno
+    const back = Math.max(0, o.size * (1 + m.ret + adj));
     cart.cash += back;
     cart.closed.push({ name, mint: m.mint, symbol: o.symbol || m.symbol, size: o.size, ret: m.ret, pnl: back - o.size, at: Date.now(), holdS: m.holdS });
     const eq = cartEquity();

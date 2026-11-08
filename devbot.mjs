@@ -20,12 +20,18 @@ const WSOL = 'So11111111111111111111111111111111111111112';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = m => console.log(`[${new Date().toLocaleTimeString('es-ES')}] ${m}`);
 const emit = m => { try { if (process.send) process.send(m); } catch {} };
-process.on('disconnect', () => process.exit(0));
+process.on('disconnect', () => { try { save(); } catch {} process.exit(0); });
 
-const st = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { startedAt: Date.now(), balance: START_SOL, open: {}, closed: [], credits: 0, stats: {} };
+// Carga segura: si el archivo de estado está corrupto (p. ej. el proceso murió a mitad de escritura), se usa la copia .bak
+const loadState = () => { for (const f of [STATE, STATE + '.bak']) { try { if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { console.log(`estado ilegible en ${f}, pruebo la copia`); } } return null; };
+const st = loadState() || { startedAt: Date.now(), balance: START_SOL, open: {}, closed: [], credits: 0, stats: {} };
 st.stats ||= {};
 const bump = k => st.stats[k] = (st.stats[k] || 0) + 1;
-const save = () => fs.writeFileSync(STATE, JSON.stringify(st, null, 1));
+// Guardado ATÓMICO: se escribe un temporal y se renombra (un corte a mitad nunca deja el archivo a medias)
+let lastBak = 0;
+const save = () => { const tmp = STATE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(st, null, 1)); fs.renameSync(tmp, STATE); if (Date.now() - lastBak > 600000) { lastBak = Date.now(); try { fs.copyFileSync(STATE, STATE + '.bak'); } catch {} } };
+// Al parar (actualización o reinicio) se guarda antes de salir
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { save(); } catch {} process.exit(0); });
 
 let rpcIdx = 0;
 async function rpc(method, params) {
@@ -120,6 +126,7 @@ function rugReason(m) {
   return null;
 }
 
+const LAT_BUY = Number(process.env.LAT_BUY ?? 800);
 const pending = new Map();
 async function onCreate(m) {
   const devPct = (Number(m.initialBuy) || 0) / 1e9 * 100;
@@ -161,6 +168,7 @@ async function onCreate(m) {
   if (devAcc && devNow < Number(m.initialBuy) * 0.9) { markRug(m.traderPublicKey, m.initialBuy, 'dev vendió en < 30 s'); bump('devVendio'); radar({ ...base, ...socials, txs, decision: 'no: el dev ya vendió' }); log(`${m.symbol || m.mint.slice(0, 6)}: el dev ya vendió (le queda ${(devNow / 1e7).toFixed(1)} % de ${devPct.toFixed(1)} %) — no compro`); save(); return; }
   const rr = rugReason(m);
   if (rr) { bump('antiRug'); radar({ ...base, ...socials, txs, decision: 'no: ' + rr }); log(`${m.symbol || m.mint.slice(0, 6)}: ${rr} — no compro`); save(); return; }
+  await sleep(LAT_BUY); // la compra real tarda ~1-2 bloques en entrar: se paga el precio de ese momento
   const c = await curve(m.bondingCurveKey);
   if (!c || c.complete) return;
   const size = Math.min(st.balance * FRACTION, st.balance - 0.003);
@@ -204,7 +212,7 @@ async function watch(mint) {
   st.balance += back;
   st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: null, kind: 'dev', reason, rise: null, peak: pos.peak, route: 'pump', devPct: pos.devPct, txs: pos.txs, path: pos.path, symbol: pos.symbol, name: pos.name, twitter: pos.twitter, telegram: pos.telegram, website: pos.website });
   delete st.open[mint];
-  emit({ type: 'sell', mint, ret, holdS: (Date.now() - pos.openedAt) / 1000, symbol: pos.symbol });
+  emit({ type: 'sell', mint, ret, size: pos.size, holdS: (Date.now() - pos.openedAt) / 1000, symbol: pos.symbol });
   log(`VENTA (${reason}) ${pos.symbol || mint.slice(0, 6)} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)} % (máx ${(pos.peak * 100).toFixed(0)} %) | saldo ${st.balance.toFixed(4)} SOL | ${st.closed.length} cerrados, ${st.closed.filter(x => x.ret > 0).length} ganadores`);
   save();
 }

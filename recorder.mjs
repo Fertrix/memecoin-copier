@@ -102,11 +102,13 @@ async function poll() {
 setInterval(poll, POLL_MS);
 
 const RUNNER_SOL = Number(process.env.RUNNER_SOL ?? 15), RUNNER_S = Number(process.env.RUNNER_S ?? 10800);
+const DEV_MIN = Number(process.env.DEV_MIN ?? 8), DEV_TRACK_S = Number(process.env.DEV_TRACK_S ?? 3900);
 const realSol = r => { const x = r.s[r.s.length - 1]; return x ? x[1] / 1e9 - 30 : 0; };
 setInterval(() => { const now = Date.now(); for (const [c, r] of toks) {
   if (r.badOwner) { finish(c, 'no es curva pump'); continue; }
-  const limit = (r.runner || realSol(r) >= RUNNER_SOL) ? RUNNER_S : TRACK_S; if (limit === RUNNER_S) r.runner = true;
-  if (now - r.t0 > limit * 1000) finish(c, 'tiempo'); else if (now - r.last > IDLE_S * (r.runner ? 6 : 1) * 1000) finish(c, 'inactivo'); } }, 5000);
+  const dev = r.devTokens / 1e7 >= DEV_MIN; // candidatos de dev fuerte: se siguen al menos DEV_TRACK_S (la salida corredor llega a 60 min)
+  const limit = Math.max((r.runner || realSol(r) >= RUNNER_SOL) ? RUNNER_S : TRACK_S, dev ? DEV_TRACK_S : 0); if (realSol(r) >= RUNNER_SOL) r.runner = true;
+  if (now - r.t0 > limit * 1000) finish(c, 'tiempo'); else if (now - r.last > IDLE_S * (r.runner || dev ? 6 : 1) * 1000) finish(c, 'inactivo'); } }, 5000);
 setInterval(() => log(`grabadora: ${stats.launches} lanzamientos, ${toks.size} en seguimiento, ${stats.written} guardados, ${stats.skipped} sin hueco, ${stats.notif} avisos ws, ${stats.pollRows} cambios por sondeo (${stats.polled} consultas, ${stats.pollErr} fallidas), ${stats.wsStall} ws mudo, ${stats.subErr} suscripciones fallidas`), 10 * 60 * 1000);
 
 function pp() {
