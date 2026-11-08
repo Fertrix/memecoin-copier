@@ -93,7 +93,11 @@ st.recent ||= [];
 const DLOG = process.env.DECISION_LOG === '1' ? process.cwd() + '/data/dev_decisions.jsonl' : null;
 function radar(x) {
   st.recent.push({ at: Date.now(), ...x }); if (st.recent.length > 80) st.recent.splice(0, st.recent.length - 80);
-  if (DLOG) { const { twitter, telegram, website, ...rest } = x; try { fs.appendFileSync(DLOG, JSON.stringify({ at: Date.now(), ...rest, tw: !!twitter, tg: !!telegram, web: !!website }) + String.fromCharCode(10)); } catch {} }
+  if (DLOG) { const { twitter, telegram, website, ...rest } = x; try { fs.appendFileSync(DLOG, JSON.stringify({ at: Date.now(), ...rest, tw: !!twitter, tg: !!telegram, web: !!website }) + String.fromCharCode(10)); } catch {}
+    // RugCheck SOLO SE APUNTA (no influye en la decisión): en unos días se medirá si sus avisos predicen pérdidas
+    if (x.mint) fetch(`https://api.rugcheck.xyz/v1/tokens/${x.mint}/report/summary`, { signal: AbortSignal.timeout(8000) }).then(r => r.ok ? r.json() : null).then(j => {
+      if (!j) return; fs.appendFileSync(DLOG, JSON.stringify({ type: 'rug', at: Date.now(), mint: x.mint, score: j.score, scoreN: j.score_normalised, risks: (j.risks || []).map(r => `${r.level}:${r.name}`) }) + String.fromCharCode(10));
+    }).catch(() => {}); }
 }
 
 // ---------- Anti-rug: creadores y "huellas" de fábrica (cantidad exacta comprada por el dev) que ya hicieron rug ----------
