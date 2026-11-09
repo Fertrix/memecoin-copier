@@ -254,6 +254,7 @@ async function tick() {
     if (H[p].grad && Date.now() - H[p].grad < MIN_AGE_MIN * 60000) continue; // aún en la zona de peligro
     if (vetoed(H[p].creator)) continue; // creador que ya ha hundido una moneda
     if (!best || pr > best.pr) best = { p, pr };
+    if (PAUSE_BUYS && pr > MD.threshold) { st.stats.pausedSignals = (st.stats.pausedSignals || 0) + 1; continue; } // en pausa: solo mide y graba
     if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) {
       if (RUG && H[p].grad) {
         const pg = rugProb([...x, (Date.now() - H[p].grad) / 60000]);
@@ -281,6 +282,8 @@ const ONLY_BUNDLED = process.env.ONLY_BUNDLED !== '0', BUNDLE_S = Number(process
 // Los hundimientos los hace una cartera grande que compró al graduarse y vende en los primeros minutos: esperar 10 min.
 // Máquina del tiempo (agrupadas): hundidas 7 % → 2 %, media +15,4 % → +23,4 %.
 const MIN_AGE_MIN = Number(process.env.MIN_AGE_MIN ?? 10);
+// PAUSA de compras: el bot sigue vigilando, grabando datos y gestionando lo abierto, pero no abre nada nuevo
+const PAUSE_BUYS = process.env.PAUSE_BUYS === '1';
 const created = new Map(); // moneda -> cuándo la vimos nacer (lanzamientos compartidos de pump.fun)
 const creatorOf = new Map();
 process.on('message', msg => { if (msg?.type === 'create' && msg.m?.mint) { created.set(msg.m.mint, Date.now()); if (msg.m.traderPublicKey) creatorOf.set(msg.m.mint, msg.m.traderPublicKey); if (created.size > 20000) { const cut = Date.now() - 900000; for (const [k, t] of created) if (t < cut) { created.delete(k); creatorOf.delete(k); } } } });
