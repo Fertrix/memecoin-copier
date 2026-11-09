@@ -105,7 +105,7 @@ async function universe() {
     });
   }
   const live = new Set(found.keys()); for (const o of Object.values(st.open)) live.add(o.pool);
-  for (const p of Object.keys(H)) if (!live.has(p) && Object.keys(H[p].h).length && Math.max(...Object.keys(H[p].h).map(Number)) < nowMin() - 60) delete H[p];
+  if (found.size >= 50) for (const p of Object.keys(H)) { if (live.has(p)) continue; const g = H[p].grad; if (g ? Date.now() - g > 6 * 3600000 : true) delete H[p]; } // fuera de la lista: solo se quedan graduaciones de < 6 h y posiciones abiertas
   st.stats.pools = Object.keys(H).length;
   log(`universo: ${st.stats.pools} pools de PumpSwap vigiladas (${fresh.length} nuevas revisadas)`);
 }
@@ -185,7 +185,7 @@ async function tick() {
   let best = null, n = 0;
   for (const p of pools) {
     const e = H[p].h[m]; if (!e) continue;
-    const have = Object.keys(H[p].h).length; if (have < 60) continue; // necesita al menos 1 h de historia
+    const have = Object.keys(H[p].h).length; if (have < 3) continue; // en la prueba, las buenas señales salen 9-47 min tras graduarse
     const x = features(p, m); const pr = predict(x); n++;
     const mint = H[p].mint, pos = st.open[mint];
     if (pos) {
@@ -198,7 +198,7 @@ async function tick() {
     if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) buy(p, pr);
   }
   st.stats.checks++; st.stats.lastEval = { at: Date.now(), pools: n, best: best ? { symbol: H[best.p].symbol, pred: best.pr } : null };
-  if (st.stats.checks % 12 === 1) log(`revisadas ${n} monedas con ≥ 1 h de historia | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
+  log(`revisadas ${n} monedas | mejor: ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${(MD.threshold * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
   save();
 }
 
@@ -208,6 +208,37 @@ if (process.env.SMART_TEST) { // comprobación: datos calculados igual que en la
 }
 log(`Bot LISTO PAPER (graduadas PumpSwap) | saldo ${st.balance.toFixed(4)} SOL | ${SIZE} SOL por compra, máx ${MAX_OPEN} a la vez | modelo ${MODEL} (${MD.trees.length} árboles, umbral +${(MD.threshold * 100).toFixed(1)} %)`);
 universe().catch(e => log('universo: ' + e.message));
+// GRADUACIONES EN VIVO: cada moneda que pasa a PumpSwap entra en vigilancia al momento (de ahí salen casi todas las señales)
+const MIG = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg';
+const seenSig = new Set();
+async function onGraduation(sig) {
+  if (seenSig.has(sig)) return; seenSig.add(sig); if (seenSig.size > 5000) seenSig.clear();
+  let tx = null; for (let i = 0; i < 15 && !tx; i++) { tx = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 0, encoding: 'json', commitment: 'confirmed' }]); if (!tx) await sleep(1000); }
+  if (!tx || !(tx.meta?.logMessages || []).some(l => /Instruction: Migrate/.test(l))) return;
+  const keys = [...tx.transaction.message.accountKeys, ...(tx.meta.loadedAddresses?.writable || []), ...(tx.meta.loadedAddresses?.readonly || [])];
+  const post = tx.meta.postTokenBalances || [];
+  const tok = post.filter(b => b.mint.endsWith('pump')).sort((a, b) => Number(b.uiTokenAmount.amount) - Number(a.uiTokenAmount.amount))[0];
+  if (!tok) return;
+  const sol = post.find(b => b.mint === WSOL && b.owner === tok.owner);
+  if (!sol) return;
+  const p0 = Number(sol.uiTokenAmount.uiAmount) / Number(tok.uiTokenAmount.uiAmount);
+  if (!(p0 > 2e-7 && p0 < 6e-7)) return; // no es la pool estándar
+  const pool = tok.owner;
+  if (H[pool]) return;
+  H[pool] = { mint: tok.mint, symbol: tok.mint.slice(0, 6), bv: keys[tok.accountIndex], qv: keys[sol.accountIndex], h: {}, grad: Date.now() };
+  st.stats.grads = (st.stats.grads || 0) + 1;
+  log(`graduación ${tok.mint.slice(0, 6)} → vigilando su pool (${Object.keys(H).length} pools)`);
+  try { const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${tok.mint}`, { signal: AbortSignal.timeout(8000) }); const j = await r.json(); if (j?.[0]?.baseToken?.symbol) H[pool].symbol = j[0].baseToken.symbol; } catch {}
+}
+function connectMig() {
+  const ws = new WebSocket(process.env.WS_URL || 'wss://api.mainnet-beta.solana.com');
+  ws.onopen = () => ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'logsSubscribe', params: [{ mentions: [MIG] }, { commitment: 'confirmed' }] }));
+  ws.onmessage = m => { try { const v = JSON.parse(String(m.data))?.params?.result?.value; if (v?.signature && !v.err && (v.logs || []).some(l => /Instruction: Migrate/.test(l))) onGraduation(v.signature).catch(() => {}); } catch {} };
+  ws.onclose = () => setTimeout(connectMig, 3000);
+  ws.onerror = () => { try { ws.close(); } catch {} };
+  const hb = setInterval(() => { if (ws.readyState === 1) { try { ws.send('{"jsonrpc":"2.0","id":9,"method":"getHealth"}'); } catch {} } else if (ws.readyState > 1) clearInterval(hb); }, 30000);
+}
+connectMig();
 setInterval(() => universe().catch(e => log('universo: ' + e.message)), 20 * 60000);
 (async function loop() {
   for (;;) {
