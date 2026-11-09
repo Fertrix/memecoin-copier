@@ -38,6 +38,16 @@ function leaf(n, x) {
   return n.leaf_value;
 }
 const predict = x => MD.trees.reduce((s, t) => s + leaf(t, x), 0);
+// Modelo ANTI-HUNDIMIENTO (monedas agrupadas): probabilidad de que la pool se hunda en los próximos 30 min.
+// Máquina del tiempo corregida: saltar si >= 40 % → hundidas 9 → 4 de 59, media por compra +10 % → +14,5 %.
+const RUG = fs.existsSync(process.env.MODEL_RUG || 'models/smart_rug.json') ? JSON.parse(fs.readFileSync(process.env.MODEL_RUG || 'models/smart_rug.json', 'utf8')) : null;
+const RUG_MAX = Number(process.env.RUG_MAX ?? RUG?.threshold ?? 0.4);
+const rugProb = x => 1 / (1 + Math.exp(-RUG.trees.reduce((s, t) => s + leaf(t, x), 0)));
+if (RUG) { let mx = 0; RUG.check.forEach((x, i) => { mx = Math.max(mx, Math.abs(rugProb(x.map(v => v ?? NaN)) - RUG.check_prob[i])); }); if (mx > 1e-6) { console.log('ERROR: el modelo anti-hundimiento en JS no coincide', mx); process.exit(1); } }
+// GRABACIÓN diaria de lo que ve el bot (reservas de cada pool cada minuto + datos de cada pool) para reentrenar con días reales
+const REC_DIR = 'data/smart_rec'; try { fs.mkdirSync(REC_DIR, { recursive: true }); } catch {}
+const recFile = () => `${REC_DIR}/${new Date().toISOString().slice(0, 10)}.jsonl`;
+const rec = o => { try { fs.appendFileSync(recFile(), JSON.stringify(o) + String.fromCharCode(10)); } catch {} };
 { let mx = 0; MD.check.forEach((x, i) => { mx = Math.max(mx, Math.abs(predict(x.map(v => v ?? NaN)) - MD.check_pred[i])); }); if (mx > 1e-6) { console.log('ERROR: el modelo en JS no coincide con Python', mx); process.exit(1); } }
 
 // ---------- Estado ----------
@@ -140,19 +150,19 @@ function sellValue([Q, R], pos) { const out = Q - Q * R / (R + pos.tokens); retu
 
 // ---------- Compra / venta ----------
 let pending = 0;
-async function buy(p, pred) {
+async function buy(p, pred, prug = null) {
   pending++;
-  try { await buyNow(p, pred); } finally { pending--; }
+  try { await buyNow(p, pred, prug); } finally { pending--; }
 }
-async function buyNow(p, pred) {
+async function buyNow(p, pred, prug) {
   const size = Math.min(SIZE, st.balance - 0.003 - RENT);
   if (size < 0.005) { log('sin saldo libre'); return; }
   await sleep(BUY_DELAY_MS); // la compra real tarda unos segundos en aterrizar: precio de ese momento
   const r = await reserves(p); if (!r) return;
   const [Q, R] = r; const x = (size - PRIO) * 1e9 * (1 - fee(Q / R * 1e6)); const tokens = R - Q * R / (Q + x);
   st.balance -= size + RENT;
-  const pos = st.open[H[p].mint] = { pool: p, size, rent: RENT, tokens, openedAt: Date.now(), symbol: H[p].symbol, pred, peak: 0, liq: Q / 1e9, mc: Q / R * 1e6, path: [] };
-  log(`COMPRA ${pos.symbol} | el modelo predice +${(pred * 100).toFixed(1)} % en 30 min | liquidez ${pos.liq.toFixed(0)} SOL | cap. ${pos.mc.toFixed(0)} SOL | ${size.toFixed(4)} SOL`);
+  const pos = st.open[H[p].mint] = { pool: p, size, rent: RENT, tokens, openedAt: Date.now(), symbol: H[p].symbol, pred, prug, peak: 0, liq: Q / 1e9, mc: Q / R * 1e6, path: [] };
+  log(`COMPRA ${pos.symbol} | el modelo predice +${(pred * 100).toFixed(1)} % en 30 min${prug != null ? ` · riesgo de hundimiento ${(prug * 100).toFixed(0)} %` : ''} | liquidez ${pos.liq.toFixed(0)} SOL | cap. ${pos.mc.toFixed(0)} SOL | ${size.toFixed(4)} SOL`);
   emit({ type: 'buy', mint: H[p].mint, symbol: pos.symbol, name: pos.symbol, whaleSol: null, kind: 'smart', route: 'pumpswap', lagMs: BUY_DELAY_MS });
   save();
 }
@@ -163,7 +173,7 @@ async function sell(mint, reason) {
   const back = r ? sellValue(r, pos) : (pos.markSol ?? 0);
   const ret = back / pos.size - 1;
   st.balance += back + (pos.rent ?? 0);
-  st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'smart', reason, peak: pos.peak, route: 'pumpswap', path: pos.path, symbol: pos.symbol, name: pos.symbol, pred: pos.pred });
+  st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'smart', reason, peak: pos.peak, route: 'pumpswap', path: pos.path, symbol: pos.symbol, name: pos.symbol, pred: pos.pred, prug: pos.prug ?? null });
   delete st.open[mint];
   emit({ type: 'sell', mint, ret, size: pos.size, holdS: (Date.now() - pos.openedAt) / 1000, symbol: pos.symbol });
   log(`VENTA (${reason}) ${pos.symbol} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)} % en ${((Date.now() - pos.openedAt) / 60000).toFixed(0)} min | saldo ${st.balance.toFixed(4)} SOL | ${st.closed.length} cerradas, ${st.closed.filter(x => x.ret > 0).length} ganadoras`);
@@ -216,7 +226,10 @@ function judgeOperators(m) { // ¿se hundió alguna agrupada? ¿cuál aguantó 6
 async function tick() {
   const m = nowMin(); const pools = Object.keys(H);
   const b = await balances(pools.flatMap(p => [H[p].qv, H[p].bv]));
-  for (const p of pools) { const Q = b[H[p].qv], R = b[H[p].bv]; if (Q > 0 && R > 0) { H[p].h[m] = [Q, R]; for (const k of Object.keys(H[p].h)) if (+k < m - HMAX) delete H[p].h[k]; } }
+  const snap = {};
+  for (const p of pools) { const Q = b[H[p].qv], R = b[H[p].bv]; if (Q > 0 && R > 0) { H[p].h[m] = [Q, R]; snap[p] = [Q, R]; for (const k of Object.keys(H[p].h)) if (+k < m - HMAX) delete H[p].h[k]; } }
+  for (const p of pools) if (!H[p].recMeta) { H[p].recMeta = 1; const P = H[p]; rec({ meta: p, mint: P.mint, symbol: P.symbol, bund: P.bund ?? null, secs: P.secs ?? null, creator: P.creator ?? null, grad: P.grad ?? null, op: P.op ?? null, opSol: P.opSol ?? null }); }
+  rec({ m, r: snap });
   for (const [mint, pos] of Object.entries(st.open)) { // valor en tiempo real
     const e = H[pos.pool]?.h[m]; if (!e) continue;
     const v = sellValue(e, pos), r = v / pos.size - 1; pos.markSol = v; pos.markAt = Date.now(); pos.peak = Math.max(pos.peak, r);
@@ -241,7 +254,13 @@ async function tick() {
     if (H[p].grad && Date.now() - H[p].grad < MIN_AGE_MIN * 60000) continue; // aún en la zona de peligro
     if (vetoed(H[p].creator)) continue; // creador que ya ha hundido una moneda
     if (!best || pr > best.pr) best = { p, pr };
-    if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) buy(p, pr);
+    if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) {
+      if (RUG && H[p].grad) {
+        const pg = rugProb([...x, (Date.now() - H[p].grad) / 60000]);
+        if (pg >= RUG_MAX) { log(`${H[p].symbol}: el modelo de precio predice +${(pr * 100).toFixed(1)} % pero el anti-hundimiento da ${(pg * 100).toFixed(0)} % de riesgo → no compro`); st.stats.rugSkips = (st.stats.rugSkips || 0) + 1; continue; }
+        buy(p, pr, pg);
+      } else buy(p, pr);
+    }
   }
   st.stats.checks++; st.stats.lastEval = { at: Date.now(), pools: n, best: best ? { symbol: H[best.p].symbol, pred: best.pr } : null };
   log(`nacimientos vistos ${created.size} | revisadas ${n} monedas (${pools.filter(p => H[p].bund).length} agrupadas) | mejor agrupada: ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${(MD.threshold * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
