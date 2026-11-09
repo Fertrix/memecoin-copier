@@ -113,20 +113,24 @@ const printOf = initialBuy => String(Math.round(Number(initialBuy) / 1e5)); // m
 function markRug(creator, initialBuy, why) {
   if (creator) st.rug.creators[creator] = Date.now();
   st.rug.prints.push([Date.now(), printOf(initialBuy)]);
-  st.rug.prints = st.rug.prints.filter(([t]) => Date.now() - t < 6 * 3600e3).slice(-500);
+  st.rug.prints = st.rug.prints.filter(([t]) => Date.now() - t < 24 * 3600e3).slice(-2000);
   log(`anti-rug: apunto ${why} (creador ${creator?.slice(0, 6)}, huella ${printOf(initialBuy)})`);
 }
 // Huellas de fábricas de rugs vistas en vivo (cantidad exacta de compra del dev): 17,7 % → NapMode, ShiftLoaf, MeowWalk, WrongBed, GuardCat (5/5 perdedores)
 const PRINT_BLACKLIST = new Set((process.env.PRINT_BLACKLIST || '1770').split(',').filter(Boolean));
+// Creadores-fábrica vistos en vivo: h42rGB lanzó 10 tokens el 8-nov (dev 9,64 %, vende a los ~30 s → −20 % justo por encima del stop)
+const CREATOR_BLACKLIST = new Set((process.env.CREATOR_BLACKLIST || 'h42rGBiB8GEAxKRUkFRaD8KUL4Me47JSNHCe5rmQPoE').split(',').filter(Boolean));
 function rugReason(m) {
+  if (CREATOR_BLACKLIST.has(m.traderPublicKey)) return 'creador fábrica conocido';
   if (PRINT_BLACKLIST.has(printOf(m.initialBuy))) return 'huella de fábrica de rugs conocida';
   if (st.rug.creators[m.traderPublicKey]) return 'creador con rug previo';
-  const p = printOf(m.initialBuy), n = st.rug.prints.filter(([t, x]) => x === p && Date.now() - t < 3 * 3600e3).length;
-  if (n >= 2) return `fábrica de rugs (misma compra exacta, ${n} rugs en 3 h)`;
+  const p = printOf(m.initialBuy), n = st.rug.prints.filter(([t, x]) => x === p && Date.now() - t < 24 * 3600e3).length;
+  if (n >= 2) return `fábrica de rugs (misma compra exacta, ${n} pérdidas en 24 h)`;
   return null;
 }
 
 const LAT_BUY = Number(process.env.LAT_BUY ?? 800);
+const LOSS_MARK = Number(process.env.LOSS_MARK ?? 0.10); // cerrar perdiendo >= 10 % marca al creador y su huella
 const RENT = 0.00204; // alquiler de la cuenta de tokens: se bloquea al comprar y se devuelve al vender
 const pending = new Map();
 async function onCreate(m) {
@@ -210,6 +214,7 @@ async function watch(mint) {
   else { const j = await jupSell(mint, Math.floor(pos.tokens)); if (j != null) back = Math.max(0, j - PRIO); }
   back ??= 0;
   const ret = back / pos.size - 1;
+  if (ret <= -LOSS_MARK && reason !== 'SL') markRug(pos.creator, pos.initialBuy, `cerró con ${(ret * 100).toFixed(0)} %`);
   st.balance += back + (pos.rent ?? 0);
   st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, lagMs: pos.lagMs, at: Date.now(), whaleSol: null, kind: 'dev', reason, rise: null, peak: pos.peak, route: 'pump', devPct: pos.devPct, txs: pos.txs, path: pos.path, symbol: pos.symbol, name: pos.name, twitter: pos.twitter, telegram: pos.telegram, website: pos.website });
   delete st.open[mint];
