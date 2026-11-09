@@ -195,6 +195,7 @@ async function tick() {
     }
     if (e[0] / 1e9 < MIN_LIQ) continue;
     if (ONLY_BUNDLED && !H[p].bund) continue;
+    if (H[p].grad && Date.now() - H[p].grad < MIN_AGE_MIN * 60000) continue; // aún en la zona de peligro
     if (!best || pr > best.pr) best = { p, pr };
     if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) buy(p, pr);
   }
@@ -214,6 +215,9 @@ const MIG = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg';
 // MONEDAS AGRUPADAS: el creador compra toda la curva y se gradúa al instante. En la prueba histórica TODA la ganancia sale de ahí
 // (se gradúan <= 120 s tras crearse: 72 ops, +15,4 % de media; las demás: 12 ops, −14,1 %). Solo compramos esas.
 const ONLY_BUNDLED = process.env.ONLY_BUNDLED !== '0', BUNDLE_S = Number(process.env.BUNDLE_S ?? 120);
+// Los hundimientos los hace una cartera grande que compró al graduarse y vende en los primeros minutos: esperar 10 min.
+// Máquina del tiempo (agrupadas): hundidas 7 % → 2 %, media +15,4 % → +23,4 %.
+const MIN_AGE_MIN = Number(process.env.MIN_AGE_MIN ?? 10);
 const created = new Map(); // moneda -> cuándo la vimos nacer (lanzamientos compartidos de pump.fun)
 process.on('message', msg => { if (msg?.type === 'create' && msg.m?.mint) { created.set(msg.m.mint, Date.now()); if (created.size > 20000) { const cut = Date.now() - 900000; for (const [k, t] of created) if (t < cut) created.delete(k); } } });
 const seenSig = new Set();
