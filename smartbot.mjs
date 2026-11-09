@@ -170,6 +170,48 @@ async function sell(mint, reason) {
   save();
 }
 
+
+// ---------- OPERADORES: la cartera que hace la compra grande al graduarse se repite en muchas monedas ----------
+// Unos operadores dejan ganar (+40/+60 % de media en la prueba), otros hunden la moneda. El bot aprende en vivo:
+// si una moneda agrupada se desploma (la pool pierde >= 85 % de sus SOL en <= 10 min), su operador queda vetado.
+st.ops ||= {}; // operador -> { tokens, rugs, ok }
+st.cre ||= {}; // creador -> nº de monedas suyas hundidas
+// Máquina del tiempo: vetar al OPERADOR quita también las buenas (los mismos operadores inflan y luego hunden: el modelo sabe cuándo salir);
+// vetar al CREADOR con un hundimiento previo sí mejora (umbral exigente: +23,4 % → +26,8 %, quita la única hundida).
+const vetoed = cre => !!cre && (st.cre[cre] || 0) >= 1;
+async function findOperator(pool) {
+  const P = H[pool]; if (!P || P.op) return;
+  let sigs = [], before;
+  for (let pg = 0; pg < 6; pg++) { // ir hacia atrás hasta el principio de la pool
+    const r = await rpc('getSignaturesForAddress', [pool, { limit: 1000, commitment: 'confirmed', ...(before ? { before } : {}) }]);
+    if (!r?.length) break; sigs = sigs.concat(r); before = r.at(-1).signature; if (r.length < 1000) break;
+  }
+  if (!sigs.length) return;
+  let best = null;
+  for (const sg of sigs.slice(-12)) { // las más antiguas: el bloque de la graduación
+    const tx = await rpc('getTransaction', [sg.signature, { maxSupportedTransactionVersion: 0, encoding: 'json', commitment: 'confirmed' }]);
+    if (!tx || tx.meta?.err) continue;
+    const payer = tx.transaction.message.accountKeys[0]; if (payer === P.creator) continue;
+    const spent = (tx.meta.preBalances[0] - tx.meta.postBalances[0]) / 1e9;
+    if (spent > 1 && (!best || spent > best.spent)) best = { payer, spent };
+  }
+  if (!best) return;
+  P.op = best.payer; P.opSol = best.spent;
+  const o = st.ops[P.op] ||= { tokens: 0, rugs: 0, ok: 0 }; o.tokens++;
+  log(`operador de ${P.symbol}: ${P.op.slice(0, 6)} compró ${best.spent.toFixed(0)} SOL al graduarse | historial: ${o.tokens} monedas, ${o.rugs} hundidas, ${o.ok} aguantaron (solo informativo)`);
+}
+function judgeOperators(m) { // ¿se hundió alguna agrupada? ¿cuál aguantó 60 min?
+  for (const [p, P] of Object.entries(H)) {
+    if (!P.bund || P.judged) continue;
+    const ks = Object.keys(P.h).map(Number).sort((a, b) => a - b); if (ks.length < 2) continue;
+    const now = P.h[m]; if (!now) continue;
+    const prev = Math.max(...ks.filter(k => k >= m - 10 && k < m).map(k => P.h[k][0]), 0);
+    const o = P.op ? (st.ops[P.op] ||= { tokens: 1, rugs: 0, ok: 0 }) : { rugs: 0, ok: 0 };
+    if (prev > 0 && now[0] < prev * 0.15) { P.judged = 'rug'; o.rugs++; if (P.creator) st.cre[P.creator] = (st.cre[P.creator] || 0) + 1; log(`HUNDIMIENTO en ${P.symbol}: la pool pasó de ${(prev / 1e9).toFixed(0)} a ${(now[0] / 1e9).toFixed(1)} SOL → creador ${P.creator ? P.creator.slice(0, 6) + ' VETADO' : 'desconocido'}${P.op ? ` · operador ${P.op.slice(0, 6)} (${P.opSol.toFixed(0)} SOL): ${o.rugs} hundidas` : ''}`); }
+    else if (Date.now() - P.grad > 3600000) { P.judged = 'ok'; o.ok++; }
+  }
+}
+
 // ---------- Bucle de cada minuto ----------
 async function tick() {
   const m = nowMin(); const pools = Object.keys(H);
@@ -180,6 +222,7 @@ async function tick() {
     const v = sellValue(e, pos), r = v / pos.size - 1; pos.markSol = v; pos.markAt = Date.now(); pos.peak = Math.max(pos.peak, r);
     if (pos.path.length < 400) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
   }
+  judgeOperators(m);
   if (m % 5 !== 0) { save(); return; }
   // decisión cada 5 min
   let best = null, n = 0;
@@ -196,6 +239,7 @@ async function tick() {
     if (e[0] / 1e9 < MIN_LIQ) continue;
     if (ONLY_BUNDLED && !H[p].bund) continue;
     if (H[p].grad && Date.now() - H[p].grad < MIN_AGE_MIN * 60000) continue; // aún en la zona de peligro
+    if (vetoed(H[p].creator)) continue; // creador que ya ha hundido una moneda
     if (!best || pr > best.pr) best = { p, pr };
     if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) buy(p, pr);
   }
@@ -219,7 +263,8 @@ const ONLY_BUNDLED = process.env.ONLY_BUNDLED !== '0', BUNDLE_S = Number(process
 // Máquina del tiempo (agrupadas): hundidas 7 % → 2 %, media +15,4 % → +23,4 %.
 const MIN_AGE_MIN = Number(process.env.MIN_AGE_MIN ?? 10);
 const created = new Map(); // moneda -> cuándo la vimos nacer (lanzamientos compartidos de pump.fun)
-process.on('message', msg => { if (msg?.type === 'create' && msg.m?.mint) { created.set(msg.m.mint, Date.now()); if (created.size > 20000) { const cut = Date.now() - 900000; for (const [k, t] of created) if (t < cut) created.delete(k); } } });
+const creatorOf = new Map();
+process.on('message', msg => { if (msg?.type === 'create' && msg.m?.mint) { created.set(msg.m.mint, Date.now()); if (msg.m.traderPublicKey) creatorOf.set(msg.m.mint, msg.m.traderPublicKey); if (created.size > 20000) { const cut = Date.now() - 900000; for (const [k, t] of created) if (t < cut) { created.delete(k); creatorOf.delete(k); } } } });
 const seenSig = new Set();
 async function onGraduation(sig) {
   if (seenSig.has(sig)) return; seenSig.add(sig); if (seenSig.size > 5000) seenSig.clear();
@@ -238,7 +283,8 @@ async function onGraduation(sig) {
   const born = created.get(tok.mint), gradAt = (tx.blockTime || Date.now() / 1000) * 1000;
   const secs = born ? Math.max(0, (gradAt - born) / 1000) : null;
   const bund = secs != null && secs <= BUNDLE_S;
-  H[pool] = { mint: tok.mint, symbol: tok.mint.slice(0, 6), bv: keys[tok.accountIndex], qv: keys[sol.accountIndex], h: {}, grad: Date.now(), bund, secs };
+  H[pool] = { mint: tok.mint, symbol: tok.mint.slice(0, 6), bv: keys[tok.accountIndex], qv: keys[sol.accountIndex], h: {}, grad: Date.now(), bund, secs, creator: creatorOf.get(tok.mint) };
+  if (bund) setTimeout(() => findOperator(pool).catch(() => {}), 8000);
   st.stats.grads = (st.stats.grads || 0) + 1;
   log(`graduación ${tok.mint.slice(0, 6)} → ${bund ? `AGRUPADA (se graduó a los ${secs.toFixed(0)} s de nacer): candidata` : secs != null ? `normal (tardó ${(secs / 60).toFixed(0)} min): solo se vigila` : 'nacimiento no visto: solo se vigila'} (${Object.keys(H).length} pools)`);
   try { const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${tok.mint}`, { signal: AbortSignal.timeout(8000) }); const j = await r.json(); if (j?.[0]?.baseToken?.symbol) H[pool].symbol = j[0].baseToken.symbol; } catch {}
