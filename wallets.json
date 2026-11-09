@@ -160,7 +160,7 @@
   },
   {
     "name": "smart",
-    "label": "🧠 BOT LISTO · EN PAUSA (6 de 14 hundidas en vivo) · sigue grabando datos",
+    "label": "🧠 BOT LISTO · graduadas PumpSwap (modelo cada 5 min) · medición",
     "type": "smart",
     "script": "smartbot.mjs",
     "wallet": "PumpSwap · monedas graduadas",
@@ -171,8 +171,7 @@
     "env": {
       "START_SOL": 0.15,
       "SIZE": 0.025,
-      "MAX_OPEN": 6,
-      "PAUSE_BUYS": 1
+      "MAX_OPEN": 6
     }
   },
   {
