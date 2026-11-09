@@ -130,6 +130,7 @@ function rugReason(m) {
 }
 
 const LAT_BUY = Number(process.env.LAT_BUY ?? 800);
+const TSTOP_MIN = Number(process.env.TSTOP_MIN ?? 0), TSTOP_UP = Number(process.env.TSTOP_UP ?? 0.05);
 const LOSS_MARK = Number(process.env.LOSS_MARK ?? 0.10); // cerrar perdiendo >= 10 % marca al creador y su huella
 const RENT = 0.00204; // alquiler de la cuenta de tokens: se bloquea al comprar y se devuelve al vender
 const pending = new Map();
@@ -204,6 +205,8 @@ async function watch(mint) {
       if (TP > 0 && r >= TP) { reason = 'TP'; back = v; break; }
       if (TRAIL > 0 && pos.peak >= TRAIL_ARM && (1 + r) <= (1 + pos.peak) * (1 - TRAIL)) { reason = 'trailing'; back = v; break; }
       if (r <= -SL) { reason = 'SL'; back = v; markRug(pos.creator, pos.initialBuy, 'stop loss'); break; }
+      // STOP DE TIEMPO: si a los TSTOP_MIN minutos no ha llegado nunca a +TSTOP_UP, vender (los buenos despegan pronto)
+      if (TSTOP_MIN > 0 && Date.now() - pos.openedAt >= TSTOP_MIN * 60000 && pos.peak < TSTOP_UP) { reason = 'stop de tiempo'; back = v; break; }
     }
     await sleep(1000);
   }
