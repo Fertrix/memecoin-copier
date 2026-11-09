@@ -194,11 +194,12 @@ async function tick() {
       continue;
     }
     if (e[0] / 1e9 < MIN_LIQ) continue;
+    if (ONLY_BUNDLED && !H[p].bund) continue;
     if (!best || pr > best.pr) best = { p, pr };
     if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) buy(p, pr);
   }
   st.stats.checks++; st.stats.lastEval = { at: Date.now(), pools: n, best: best ? { symbol: H[best.p].symbol, pred: best.pr } : null };
-  log(`revisadas ${n} monedas | mejor: ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${(MD.threshold * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
+  log(`revisadas ${n} monedas (${pools.filter(p => H[p].bund).length} agrupadas) | mejor agrupada: ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${(MD.threshold * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
   save();
 }
 
@@ -210,6 +211,11 @@ log(`Bot LISTO PAPER (graduadas PumpSwap) | saldo ${st.balance.toFixed(4)} SOL |
 universe().catch(e => log('universo: ' + e.message));
 // GRADUACIONES EN VIVO: cada moneda que pasa a PumpSwap entra en vigilancia al momento (de ahí salen casi todas las señales)
 const MIG = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg';
+// MONEDAS AGRUPADAS: el creador compra toda la curva y se gradúa al instante. En la prueba histórica TODA la ganancia sale de ahí
+// (se gradúan <= 120 s tras crearse: 72 ops, +15,4 % de media; las demás: 12 ops, −14,1 %). Solo compramos esas.
+const ONLY_BUNDLED = process.env.ONLY_BUNDLED !== '0', BUNDLE_S = Number(process.env.BUNDLE_S ?? 120);
+const created = new Map(); // moneda -> cuándo la vimos nacer (lanzamientos compartidos de pump.fun)
+process.on('message', msg => { if (msg?.type === 'create' && msg.m?.mint) { created.set(msg.m.mint, Date.now()); if (created.size > 20000) { const cut = Date.now() - 900000; for (const [k, t] of created) if (t < cut) created.delete(k); } } });
 const seenSig = new Set();
 async function onGraduation(sig) {
   if (seenSig.has(sig)) return; seenSig.add(sig); if (seenSig.size > 5000) seenSig.clear();
@@ -225,9 +231,12 @@ async function onGraduation(sig) {
   if (!(p0 > 2e-7 && p0 < 6e-7)) return; // no es la pool estándar
   const pool = tok.owner;
   if (H[pool]) return;
-  H[pool] = { mint: tok.mint, symbol: tok.mint.slice(0, 6), bv: keys[tok.accountIndex], qv: keys[sol.accountIndex], h: {}, grad: Date.now() };
+  const born = created.get(tok.mint), gradAt = (tx.blockTime || Date.now() / 1000) * 1000;
+  const secs = born ? Math.max(0, (gradAt - born) / 1000) : null;
+  const bund = secs != null && secs <= BUNDLE_S;
+  H[pool] = { mint: tok.mint, symbol: tok.mint.slice(0, 6), bv: keys[tok.accountIndex], qv: keys[sol.accountIndex], h: {}, grad: Date.now(), bund, secs };
   st.stats.grads = (st.stats.grads || 0) + 1;
-  log(`graduación ${tok.mint.slice(0, 6)} → vigilando su pool (${Object.keys(H).length} pools)`);
+  log(`graduación ${tok.mint.slice(0, 6)} → ${bund ? `AGRUPADA (se graduó a los ${secs.toFixed(0)} s de nacer): candidata` : secs != null ? `normal (tardó ${(secs / 60).toFixed(0)} min): solo se vigila` : 'nacimiento no visto: solo se vigila'} (${Object.keys(H).length} pools)`);
   try { const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${tok.mint}`, { signal: AbortSignal.timeout(8000) }); const j = await r.json(); if (j?.[0]?.baseToken?.symbol) H[pool].symbol = j[0].baseToken.symbol; } catch {}
 }
 function connectMig() {

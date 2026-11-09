@@ -126,14 +126,14 @@ function start(c) {
   if (c.type === 'grad') Object.assign(env, { MAX_PREMIUM: String(c.maxPremium ?? 0.05), MIN_PREMIUM: String(c.minPremium ?? -0.35), SL_NET: String(c.slNet ?? 0.15), TP_NET: String(c.tpNet ?? 0.12), HOLD_S: String(c.holdS ?? 180) });
   env.HELIUS_FALLBACK = process.env.HELIUS_FALLBACK_KIDS === '1' ? '1' : '0'; // por defecto ningún bot gasta créditos de Helius
   if (c.env) for (const [k, v] of Object.entries(c.env)) env[k] = String(v);
-  if (c.type === 'dev' || c.type === 'rec') env.FEED = 'ipc';
+  if (c.type === 'dev' || c.type === 'rec' || c.type === 'smart') env.FEED = 'ipc';
   if (!c.type && c.wallet) env.WS_MODE = 'ipc'; // las copias reciben los avisos del WebSocket compartido
   const ch = fork(path.join(DIR, c.script || (c.type === 'grad' ? 'gradbot.mjs' : c.type === 'dev' ? 'devbot.mjs' : c.type === 'rec' ? 'recorder.mjs' : 'livecopy.mjs')), [], { env, cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   ch.stdout.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.log(`[${c.name}] ${l}`); });
   ch.stderr.on('data', d => { for (const l of String(d).split('\n').filter(Boolean)) console.error(`[${c.name}] ${l}`); });
   KIDS.add(ch);
   ch.on('message', m => { try { onEvent(c.name, m); } catch (e) { console.error('evento', e); } });
-  if (c.type === 'dev' || c.type === 'rec') FEED_KIDS.add(ch);
+  if (c.type === 'dev' || c.type === 'rec' || c.type === 'smart') FEED_KIDS.add(ch);
   if (!c.type && c.wallet) { COPY_KIDS.set(c.wallet, ch); copySub(c.wallet); }
   ch.on('exit', code => { KIDS.delete(ch); FEED_KIDS.delete(ch); console.log(`[${c.name}] se ha parado (código ${code}); relanzando en 10 s`); setTimeout(() => start(c), 10000); });
 }
@@ -170,7 +170,7 @@ function feed() {
   p.onclose = () => setTimeout(feed, 3000);
   p.onerror = () => { try { p.close(); } catch {} };
 }
-if (COPIERS.some(c => c.type === 'dev' || c.type === 'rec')) feed();
+if (COPIERS.some(c => c.type === 'dev' || c.type === 'rec' || c.type === 'smart')) feed();
 for (const c of COPIERS) start(c);
 if (COPIERS.some(c => !c.type && c.wallet)) copyWs();
 
