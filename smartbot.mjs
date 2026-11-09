@@ -199,7 +199,7 @@ async function tick() {
     if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) buy(p, pr);
   }
   st.stats.checks++; st.stats.lastEval = { at: Date.now(), pools: n, best: best ? { symbol: H[best.p].symbol, pred: best.pr } : null };
-  log(`revisadas ${n} monedas (${pools.filter(p => H[p].bund).length} agrupadas) | mejor agrupada: ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${(MD.threshold * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
+  log(`nacimientos vistos ${created.size} | revisadas ${n} monedas (${pools.filter(p => H[p].bund).length} agrupadas) | mejor agrupada: ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${(MD.threshold * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
   save();
 }
 
