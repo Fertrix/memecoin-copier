@@ -1,0 +1,217 @@
+// BOT LISTO (PAPER, 0 € reales) en monedas ya graduadas (PumpSwap).
+// - Cada 20 min saca de GeckoTerminal las pools de PumpSwap con más actividad (moneda/SOL).
+// - Cada minuto lee las reservas EXACTAS de cada pool (cuentas de la pool por RPC público): precio, liquidez, flujo de SOL.
+// - Cada 5 min un modelo (árboles entrenados con el día completo del 15-oct, todas las monedas aunque luego murieran)
+//   mira ~15 datos del pasado de cada moneda y predice lo que ganaría quedándose 30 min.
+//   Compra solo si la predicción supera el umbral del 0,1 % de mejores momentos; con la moneda en mano la revisa cada 5 min
+//   y vende cuando el modelo deja de predecir ganancia (o a las 6 h).
+// - Comisión real de PumpSwap según capitalización (medida en los datos), prioridad 0,0002 SOL por tx, alquiler de cuenta.
+// Prueba histórica "como en vivo" (entrena con lo anterior, opera las 4 h siguientes, 4 veces): 90 ops, +15,8 % de media.
+import fs from 'node:fs';
+
+const START_SOL = Number(process.env.START_SOL ?? 0.15);
+const SIZE = Number(process.env.SIZE ?? 0.025);
+const MAX_OPEN = Number(process.env.MAX_OPEN ?? 6);
+const MAX_HOLD_MIN = Number(process.env.MAX_HOLD_MIN ?? 360);
+const BUY_DELAY_MS = Number(process.env.BUY_DELAY_MS ?? 2000);
+const MODEL = process.env.MODEL || 'models/smart_novol.json';
+const STATE = process.env.STATE || 'data/livecopy_smart.json';
+const HIST = STATE.replace(/\.json$/, '') + '_hist.json';
+const PRIO = 0.0002, RENT = 0.00204, MIN_LIQ = 30, HMAX = 240;
+const WSOL = 'So11111111111111111111111111111111111111112';
+const RPCS = (process.env.RPC_URLS || 'https://api.mainnet-beta.solana.com,https://solana-rpc.publicnode.com').split(',');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const log = m => console.log(`[${new Date().toLocaleTimeString('es-ES')}] ${m}`);
+const emit = m => { try { if (process.send) process.send(m); } catch {} };
+process.on('disconnect', () => { save(); process.exit(0); });
+for (const s of ['SIGTERM', 'SIGINT']) process.on(s, () => { save(); process.exit(0); });
+
+// ---------- Modelo ----------
+const MD = JSON.parse(fs.readFileSync(MODEL, 'utf8'));
+function leaf(n, x) {
+  while (n.leaf_value === undefined) {
+    let v = x[n.split_feature]; const miss = n.missing_type;
+    if (v == null || Number.isNaN(v)) { if (miss === 'NaN') { n = n.default_left ? n.left_child : n.right_child; continue; } v = 0; }
+    if (miss === 'Zero' && v === 0) { n = n.default_left ? n.left_child : n.right_child; continue; }
+    n = v <= n.threshold ? n.left_child : n.right_child;
+  }
+  return n.leaf_value;
+}
+const predict = x => MD.trees.reduce((s, t) => s + leaf(t, x), 0);
+{ let mx = 0; MD.check.forEach((x, i) => { mx = Math.max(mx, Math.abs(predict(x.map(v => v ?? NaN)) - MD.check_pred[i])); }); if (mx > 1e-6) { console.log('ERROR: el modelo en JS no coincide con Python', mx); process.exit(1); } }
+
+// ---------- Estado ----------
+const loadJ = f => { for (const g of [f, f + '.bak']) { try { if (fs.existsSync(g)) return JSON.parse(fs.readFileSync(g, 'utf8')); } catch {} } return null; };
+const st = loadJ(STATE) || { startedAt: Date.now(), balance: START_SOL, open: {}, closed: [], credits: 0, stats: { pools: 0, checks: 0 } };
+st.stats ||= { pools: 0, checks: 0 };
+const H = loadJ(HIST) || {}; // pool -> { mint, symbol, bv, qv, h: { minuto: [Qlam, Rraw] } }
+let lastBak = 0;
+function save() {
+  try {
+    const w = (f, o) => { fs.writeFileSync(f + '.tmp', JSON.stringify(o)); fs.renameSync(f + '.tmp', f); };
+    w(STATE, st); w(HIST, H);
+    if (Date.now() - lastBak > 600000) { lastBak = Date.now(); fs.copyFileSync(STATE, STATE + '.bak'); }
+  } catch (e) { log('no pude guardar: ' + e.message); }
+}
+
+// ---------- RPC ----------
+let rpcIdx = 0;
+async function rpc(method, params) {
+  for (let i = 0; i < RPCS.length * 3; i++) {
+    const url = RPCS[(rpcIdx + i) % RPCS.length];
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(10000) });
+      if (r.status === 429 || r.status >= 500) { await sleep(600); continue; }
+      const j = await r.json(); if (j.error) { await sleep(400); continue; }
+      rpcIdx = (rpcIdx + i) % RPCS.length; return j.result ?? null;
+    } catch { await sleep(400); }
+  }
+  return null;
+}
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58(b) { let n = BigInt('0x' + Buffer.from(b).toString('hex')), s = ''; while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; } for (const x of b) { if (x === 0) s = '1' + s; else break; } return s; }
+async function balances(accts) { // cuenta -> cantidad (bruta)
+  const out = {};
+  for (let i = 0; i < accts.length; i += 100) {
+    const r = await rpc('getMultipleAccounts', [accts.slice(i, i + 100), { encoding: 'jsonParsed', commitment: 'confirmed' }]);
+    if (!r) continue;
+    r.value.forEach((a, k) => { const amt = a?.data?.parsed?.info?.tokenAmount?.amount; if (amt != null) out[accts[i + k]] = Number(amt); });
+  }
+  return out;
+}
+
+// ---------- Universo: pools de PumpSwap con actividad ----------
+async function universe() {
+  const found = new Map();
+  for (const sort of ['h24_volume_usd_desc', 'h24_tx_count_desc']) for (let page = 1, tries = 0; page <= (sort === 'h24_volume_usd_desc' ? 10 : 5); page++) {
+    try {
+      const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/solana/dexes/pumpswap/pools?page=${page}&sort=${sort}`, { signal: AbortSignal.timeout(15000) });
+      if (r.status === 429) { if (++tries <= 4) { await sleep(20000); page--; } continue; }
+      tries = 0;
+      const j = await r.json();
+      for (const p of j.data || []) found.set(p.attributes.address, p.attributes.name);
+    } catch {}
+    await sleep(5000);
+  }
+  const fresh = [...found.keys()].filter(p => !H[p]);
+  for (let i = 0; i < fresh.length; i += 100) {
+    const r = await rpc('getMultipleAccounts', [fresh.slice(i, i + 100), { encoding: 'base64' }]);
+    r?.value?.forEach((a, k) => {
+      if (!a || a.owner !== 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA') return;
+      const b = Buffer.from(a.data[0], 'base64'); if (b.length < 203) return;
+      const base = b58(b.subarray(43, 75)), quote = b58(b.subarray(75, 107));
+      if (quote !== WSOL || !base.endsWith('pump')) return; // solo pools moneda/SOL de monedas de pump.fun (como en la prueba)
+      H[fresh[i + k]] = { mint: base, symbol: (found.get(fresh[i + k]) || '').split(' /')[0], bv: b58(b.subarray(139, 171)), qv: b58(b.subarray(171, 203)), h: {} };
+    });
+  }
+  const live = new Set(found.keys()); for (const o of Object.values(st.open)) live.add(o.pool);
+  for (const p of Object.keys(H)) if (!live.has(p) && Object.keys(H[p].h).length && Math.max(...Object.keys(H[p].h).map(Number)) < nowMin() - 60) delete H[p];
+  st.stats.pools = Object.keys(H).length;
+  log(`universo: ${st.stats.pools} pools de PumpSwap vigiladas (${fresh.length} nuevas revisadas)`);
+}
+const nowMin = () => Math.floor(Date.now() / 60000);
+
+// ---------- Datos (idénticos a la prueba histórica) ----------
+function features(p, i) {
+  const h = H[p].h; const Ql = k => h[k]?.[0], Rr = k => h[k]?.[1];
+  const lp = k => (Ql(k) != null ? Math.log(Ql(k) / Rr(k)) : NaN);
+  const Qs = k => (Ql(k) != null ? Ql(k) / 1e9 : NaN);
+  const L = []; for (let k = i - 181; k <= i; k++) L.push(lp(k)); // L[181 - k] = lp(i - k)
+  const at = k => L[181 - k];
+  const win = n => L.slice(182 - n); // los n últimos minutos
+  const nmax = a => { let m = -Infinity, ok = false; for (const v of a) if (!Number.isNaN(v)) { ok = true; if (v > m) m = v; } return ok ? m : NaN; };
+  const nmin = a => -nmax(a.map(v => -v));
+  const r1 = L.map((v, k) => (k === 0 ? NaN : v - L[k - 1]));
+  const nstd = a => { const b = a.filter(v => !Number.isNaN(v)); if (!b.length) return NaN; const m = b.reduce((s, v) => s + v, 0) / b.length; return Math.sqrt(b.reduce((s, v) => s + (v - m) ** 2, 0) / b.length); };
+  const cur = at(0), Qi = Qs(i);
+  const F = {
+    sube5: cur - at(5), sube15: cur - at(15), sube30: cur - at(30), sube60: cur - at(60), sube180: cur - at(180),
+    desde_max60: cur - nmax(win(61)), desde_max180: cur - nmax(win(181)), desde_min180: cur - nmin(win(181)),
+    vol5: NaN, vol30: NaN, vol180: NaN,
+    flujo5: (Qi - Qs(i - 5)) / Qi, flujo30: (Qi - Qs(i - 30)) / Qi,
+    log_liq: Math.log(Qi), log_mc: Math.log(Math.exp(cur) * 1e6),
+    volat30: nstd(r1.slice(182 - 31)), volat180: nstd(r1.slice(1)),
+  };
+  return MD.features.map(n => F[n]);
+}
+const fee = mc => mc < 420 ? 0.0125 : mc < 1500 ? 0.012 : mc < 2500 ? 0.0115 : mc < 5000 ? 0.011 : mc < 10000 ? 0.01 : mc < 20000 ? 0.0095 : mc < 50000 ? 0.0065 : mc < 100000 ? 0.0045 : 0.003;
+async function reserves(p) { const b = await balances([H[p].qv, H[p].bv]); const Q = b[H[p].qv], R = b[H[p].bv]; return Q > 0 && R > 0 ? [Q, R] : null; }
+function sellValue([Q, R], pos) { const out = Q - Q * R / (R + pos.tokens); return Math.max(0, out / 1e9 * (1 - fee(Q / R * 1e6)) - PRIO); }
+
+// ---------- Compra / venta ----------
+let pending = 0;
+async function buy(p, pred) {
+  pending++;
+  try { await buyNow(p, pred); } finally { pending--; }
+}
+async function buyNow(p, pred) {
+  const size = Math.min(SIZE, st.balance - 0.003 - RENT);
+  if (size < 0.005) { log('sin saldo libre'); return; }
+  await sleep(BUY_DELAY_MS); // la compra real tarda unos segundos en aterrizar: precio de ese momento
+  const r = await reserves(p); if (!r) return;
+  const [Q, R] = r; const x = (size - PRIO) * 1e9 * (1 - fee(Q / R * 1e6)); const tokens = R - Q * R / (Q + x);
+  st.balance -= size + RENT;
+  const pos = st.open[H[p].mint] = { pool: p, size, rent: RENT, tokens, openedAt: Date.now(), symbol: H[p].symbol, pred, peak: 0, liq: Q / 1e9, mc: Q / R * 1e6, path: [] };
+  log(`COMPRA ${pos.symbol} | el modelo predice +${(pred * 100).toFixed(1)} % en 30 min | liquidez ${pos.liq.toFixed(0)} SOL | cap. ${pos.mc.toFixed(0)} SOL | ${size.toFixed(4)} SOL`);
+  emit({ type: 'buy', mint: H[p].mint, symbol: pos.symbol, name: pos.symbol, whaleSol: null, kind: 'smart', route: 'pumpswap', lagMs: BUY_DELAY_MS });
+  save();
+}
+async function sell(mint, reason) {
+  const pos = st.open[mint]; if (!pos || pos.selling) return; pos.selling = true;
+  await sleep(1000);
+  const r = await reserves(pos.pool);
+  const back = r ? sellValue(r, pos) : (pos.markSol ?? 0);
+  const ret = back / pos.size - 1;
+  st.balance += back + (pos.rent ?? 0);
+  st.closed.push({ mint, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'smart', reason, peak: pos.peak, route: 'pumpswap', path: pos.path, symbol: pos.symbol, name: pos.symbol, pred: pos.pred });
+  delete st.open[mint];
+  emit({ type: 'sell', mint, ret, size: pos.size, holdS: (Date.now() - pos.openedAt) / 1000, symbol: pos.symbol });
+  log(`VENTA (${reason}) ${pos.symbol} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)} % en ${((Date.now() - pos.openedAt) / 60000).toFixed(0)} min | saldo ${st.balance.toFixed(4)} SOL | ${st.closed.length} cerradas, ${st.closed.filter(x => x.ret > 0).length} ganadoras`);
+  save();
+}
+
+// ---------- Bucle de cada minuto ----------
+async function tick() {
+  const m = nowMin(); const pools = Object.keys(H);
+  const b = await balances(pools.flatMap(p => [H[p].qv, H[p].bv]));
+  for (const p of pools) { const Q = b[H[p].qv], R = b[H[p].bv]; if (Q > 0 && R > 0) { H[p].h[m] = [Q, R]; for (const k of Object.keys(H[p].h)) if (+k < m - HMAX) delete H[p].h[k]; } }
+  for (const [mint, pos] of Object.entries(st.open)) { // valor en tiempo real
+    const e = H[pos.pool]?.h[m]; if (!e) continue;
+    const v = sellValue(e, pos), r = v / pos.size - 1; pos.markSol = v; pos.markAt = Date.now(); pos.peak = Math.max(pos.peak, r);
+    if (pos.path.length < 400) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
+  }
+  if (m % 5 !== 0) { save(); return; }
+  // decisión cada 5 min
+  let best = null, n = 0;
+  for (const p of pools) {
+    const e = H[p].h[m]; if (!e) continue;
+    const have = Object.keys(H[p].h).length; if (have < 60) continue; // necesita al menos 1 h de historia
+    const x = features(p, m); const pr = predict(x); n++;
+    const mint = H[p].mint, pos = st.open[mint];
+    if (pos) {
+      if (pr < MD.exit_below) sell(mint, `el modelo ya no ve ganancia (${(pr * 100).toFixed(1)} %)`);
+      else if (Date.now() - pos.openedAt >= MAX_HOLD_MIN * 60000) sell(mint, 'máx 6 h');
+      continue;
+    }
+    if (e[0] / 1e9 < MIN_LIQ) continue;
+    if (!best || pr > best.pr) best = { p, pr };
+    if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) buy(p, pr);
+  }
+  st.stats.checks++; st.stats.lastEval = { at: Date.now(), pools: n, best: best ? { symbol: H[best.p].symbol, pred: best.pr } : null };
+  if (st.stats.checks % 12 === 1) log(`revisadas ${n} monedas con ≥ 1 h de historia | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
+  save();
+}
+
+if (process.env.SMART_TEST) { // comprobación: datos calculados igual que en la prueba histórica
+  const T = JSON.parse(fs.readFileSync(process.env.SMART_TEST, 'utf8')); H.test = { h: T.h };
+  console.log(JSON.stringify(T.points.map(i => features('test', i)))); process.exit(0);
+}
+log(`Bot LISTO PAPER (graduadas PumpSwap) | saldo ${st.balance.toFixed(4)} SOL | ${SIZE} SOL por compra, máx ${MAX_OPEN} a la vez | modelo ${MODEL} (${MD.trees.length} árboles, umbral +${(MD.threshold * 100).toFixed(1)} %)`);
+universe().catch(e => log('universo: ' + e.message));
+setInterval(() => universe().catch(e => log('universo: ' + e.message)), 20 * 60000);
+(async function loop() {
+  for (;;) {
+    const wait = 60000 - (Date.now() % 60000) + 1500; await sleep(wait);
+    try { await tick(); } catch (e) { log('error en el minuto: ' + e.message); }
+  }
+})();
