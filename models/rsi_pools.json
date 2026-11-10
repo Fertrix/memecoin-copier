@@ -78,5 +78,10 @@
   "name": "jellyjelly",
   "pool": "3bC2e2RxcfvF9oP22LvbaNsVwoS2T98q6ErCRoayQYdq",
   "quote": "SOL"
+ },
+ {
+  "name": "BONK",
+  "pool": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
+  "quote": "SOL"
  }
 ]
