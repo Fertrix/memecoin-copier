@@ -45,13 +45,14 @@ async function check() {
     const R = rsi(closed.map(x => x.c)), r = R.at(-1), barT = closed.at(-1).t;
     const pos = st.open[P.pool];
     if (pos) {
-      pos.markSol = pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO; pos.markAt = Date.now(); pos.rsi = r;
+      pos.markSol = pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO; pos.markAt = Date.now(); pos.rsi = r; save();
       if (r > RSI_OUT && barT > pos.bar) {
         const back = Math.max(0, pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO), ret = back / pos.size - 1;
         st.balance += back;
         st.closed.push({ mint: P.pool, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'rsi', reason: `RSI ${r.toFixed(0)} > ${RSI_OUT}`, route: 'jup', symbol: P.name, name: P.name, rsiIn: pos.rsiIn });
         delete st.open[P.pool];
         emit({ type: 'sell', mint: P.pool, ret, size: pos.size, holdS: (Date.now() - pos.openedAt) / 1000, symbol: P.name });
+        save();
         log(`VENTA ${P.name} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)} % (RSI ${r.toFixed(0)}) en ${((Date.now() - pos.openedAt) / 3600000).toFixed(1)} h | saldo ${st.balance.toFixed(4)} SOL | ${st.closed.length} cerradas, ${st.closed.filter(x => x.ret > 0).length} ganadoras`);
       }
     } else if (r < RSI_IN && st.lastBar?.[P.pool] !== barT && Object.keys(st.open).length < MAX_OPEN) {
@@ -59,6 +60,7 @@ async function check() {
       st.balance -= size; (st.lastBar ||= {})[P.pool] = barT;
       st.open[P.pool] = { size, entry: cur, openedAt: Date.now(), bar: barT, rsiIn: r, symbol: P.name, name: P.name };
       emit({ type: 'buy', mint: P.pool, symbol: P.name, name: P.name, whaleSol: null, kind: 'rsi', route: 'jup', lagMs: 0 });
+      save();
       log(`COMPRA ${P.name} | RSI ${r.toFixed(1)} < ${RSI_IN} | precio ${cur.toPrecision(4)} ${P.quote} | ${size.toFixed(4)} SOL`);
     }
   }
@@ -67,4 +69,11 @@ async function check() {
   save();
 }
 log(`Bot REBOTE RSI PAPER | ${POOLS.length} memecoins grandes | velas de ${TF_H} h | compra RSI < ${RSI_IN}, vende RSI > ${RSI_OUT} | ${SIZE} SOL por compra | saldo ${st.balance.toFixed(4)} SOL`);
-(async function loop() { for (;;) { try { await check(); } catch (e) { log('error: ' + e.message); } await sleep(15 * 60000); } })();
+// Una vuelta por hora, 2 min después de cerrar la vela de 1 h (con velas de 1-4 h no hace falta más, y así no chocamos con el límite de GeckoTerminal)
+(async function loop() {
+  for (;;) {
+    try { await check(); } catch (e) { log('error: ' + e.message); }
+    const now = Date.now(), next = Math.ceil((now - 120000) / 3600000) * 3600000 + 120000;
+    await sleep(Math.max(60000, next - now));
+  }
+})();
