@@ -159,8 +159,27 @@
     }
   },
   {
+    "name": "smartnorm",
+    "label": "🧠 BOT LISTO v2 · solo monedas NORMALES (las agrupadas se hunden el 96 %) · medición",
+    "type": "smart",
+    "script": "smartbot.mjs",
+    "wallet": "PumpSwap · monedas graduadas",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.15,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.15,
+      "SIZE": 0.025,
+      "MAX_OPEN": 6,
+      "BUNDLE_MODE": "skip",
+      "BUY_TH": 0.05,
+      "REC": "0"
+    }
+  },
+  {
     "name": "smart",
-    "label": "🧠 BOT LISTO · graduadas PumpSwap (modelo cada 5 min) · medición",
+    "label": "🧠 BOT LISTO v1 · solo agrupadas (sin saldo: 14 hundidas de 29) · ya no compra",
     "type": "smart",
     "script": "smartbot.mjs",
     "wallet": "PumpSwap · monedas graduadas",

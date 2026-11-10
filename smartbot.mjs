@@ -47,7 +47,7 @@ if (RUG) { let mx = 0; RUG.check.forEach((x, i) => { mx = Math.max(mx, Math.abs(
 // GRABACIÓN diaria de lo que ve el bot (reservas de cada pool cada minuto + datos de cada pool) para reentrenar con días reales
 const REC_DIR = 'data/smart_rec'; try { fs.mkdirSync(REC_DIR, { recursive: true }); } catch {}
 const recFile = () => `${REC_DIR}/${new Date().toISOString().slice(0, 10)}.jsonl`;
-const rec = o => { try { fs.appendFileSync(recFile(), JSON.stringify(o) + String.fromCharCode(10)); } catch {} };
+const rec = o => { if (process.env.REC === '0') return; try { fs.appendFileSync(recFile(), JSON.stringify(o) + String.fromCharCode(10)); } catch {} };
 { let mx = 0; MD.check.forEach((x, i) => { mx = Math.max(mx, Math.abs(predict(x.map(v => v ?? NaN)) - MD.check_pred[i])); }); if (mx > 1e-6) { console.log('ERROR: el modelo en JS no coincide con Python', mx); process.exit(1); } }
 
 // ---------- Estado ----------
@@ -250,13 +250,14 @@ async function tick() {
       continue;
     }
     if (e[0] / 1e9 < MIN_LIQ) continue;
-    if (ONLY_BUNDLED && !H[p].bund) continue;
+    if (BUNDLE_MODE === 'only' && !H[p].bund) continue;
+    if (BUNDLE_MODE === 'skip' && (H[p].bund || !H[p].grad)) continue; // normales recién graduadas que hemos visto nacer o graduarse
     if (H[p].grad && Date.now() - H[p].grad < MIN_AGE_MIN * 60000) continue; // aún en la zona de peligro
     if (vetoed(H[p].creator)) continue; // creador que ya ha hundido una moneda
     if (!best || pr > best.pr) best = { p, pr };
-    if (PAUSE_BUYS && pr > MD.threshold) { st.stats.pausedSignals = (st.stats.pausedSignals || 0) + 1; continue; } // en pausa: solo mide y graba
-    if (pr > MD.threshold && Object.keys(st.open).length + pending < MAX_OPEN) {
-      if (RUG && H[p].grad) {
+    if (PAUSE_BUYS && pr > (BUY_TH ?? MD.threshold)) { st.stats.pausedSignals = (st.stats.pausedSignals || 0) + 1; continue; } // en pausa: solo mide y graba
+    if (pr > (BUY_TH ?? MD.threshold) && Object.keys(st.open).length + pending < MAX_OPEN) {
+      if (RUG && H[p].grad && H[p].bund) {
         const pg = rugProb([...x, (Date.now() - H[p].grad) / 60000]);
         if (pg >= RUG_MAX) { log(`${H[p].symbol}: el modelo de precio predice +${(pr * 100).toFixed(1)} % pero el anti-hundimiento da ${(pg * 100).toFixed(0)} % de riesgo → no compro`); st.stats.rugSkips = (st.stats.rugSkips || 0) + 1; continue; }
         buy(p, pr, pg);
@@ -264,7 +265,7 @@ async function tick() {
     }
   }
   st.stats.checks++; st.stats.lastEval = { at: Date.now(), pools: n, best: best ? { symbol: H[best.p].symbol, pred: best.pr } : null };
-  log(`nacimientos vistos ${created.size} | revisadas ${n} monedas (${pools.filter(p => H[p].bund).length} agrupadas) | mejor agrupada: ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${(MD.threshold * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
+  log(`nacimientos vistos ${created.size} | revisadas ${n} monedas (${pools.filter(p => H[p].bund).length} agrupadas) | mejor candidata (${BUNDLE_MODE === 'skip' ? 'normales' : BUNDLE_MODE === 'only' ? 'agrupadas' : 'todas'}): ${best ? H[best.p].symbol + ' ' + (best.pr * 100).toFixed(1) + ' %' : '—'} (compra si > ${((BUY_TH ?? MD.threshold) * 100).toFixed(1)} %) | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
   save();
 }
 
@@ -279,6 +280,10 @@ const MIG = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg';
 // MONEDAS AGRUPADAS: el creador compra toda la curva y se gradúa al instante. En la prueba histórica TODA la ganancia sale de ahí
 // (se gradúan <= 120 s tras crearse: 72 ops, +15,4 % de media; las demás: 12 ops, −14,1 %). Solo compramos esas.
 const ONLY_BUNDLED = process.env.ONLY_BUNDLED !== '0', BUNDLE_S = Number(process.env.BUNDLE_S ?? 120);
+// MODO de monedas: 'only' = solo agrupadas (octubre: ahí estaba la ganancia) · 'skip' = NUNCA agrupadas.
+// Datos exactos del 9-10 nov: se hunden 132 de 137 agrupadas (96 %) frente a 42 de 89 normales (47 %).
+const BUNDLE_MODE = process.env.BUNDLE_MODE || (ONLY_BUNDLED ? 'only' : 'any');
+const BUY_TH = process.env.BUY_TH != null ? Number(process.env.BUY_TH) : null; // umbral de compra propio (si no, el del modelo)
 // Los hundimientos los hace una cartera grande que compró al graduarse y vende en los primeros minutos: esperar 10 min.
 // Máquina del tiempo (agrupadas): hundidas 7 % → 2 %, media +15,4 % → +23,4 %.
 const MIN_AGE_MIN = Number(process.env.MIN_AGE_MIN ?? 10);
