@@ -222,6 +222,53 @@ function judgeOperators(m) { // ¿se hundió alguna agrupada? ¿cuál aguantó 6
   }
 }
 
+
+// ---------- RUGCHECK (filtros de Clinter) ----------
+// RC_SHADOW=1: audita TODAS las graduaciones a los RC_AT_MIN min y lo graba (para medir qué filtros evitan hundimientos).
+// RC_FILTER=1: además no compra si falla algún filtro de Clinter (score > 500, riesgos "danger", > 16 insiders, dev > 3 %,
+//              pool fuera de 8-95 %, top 10 > 60 %).
+const RC_SHADOW = process.env.RC_SHADOW === '1', RC_FILTER = process.env.RC_FILTER === '1', RC_AT_MIN = Number(process.env.RC_AT_MIN ?? 8);
+const rcQueue = []; let rcBusy = false;
+async function rcAudit(mint) {
+  try {
+    const r = await fetch(`https://api.rugcheck.xyz/v1/tokens/${mint}/report`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(25000) });
+    if (!r.ok) return null; const d = await r.json();
+    const known = d.knownAccounts || {}; const poolOwners = new Set(Object.entries(known).filter(([, v]) => /pool|amm|raydium|meteora|orca|vault|bonding/i.test(v?.name || '')).map(([k]) => k));
+    let poolPct = 0; const reg = [];
+    for (const h of d.topHolders || []) { const pct = Number(h.pct || 0); if (poolOwners.has(h.owner) || pct > 35) poolPct += pct; else reg.push(pct); }
+    reg.sort((a, b) => b - a);
+    const supply = Number(d.token?.supply || 1e15);
+    return { score: d.score || 0, insiders: d.graphInsidersDetected || 0, devPct: +((Number(d.creatorBalance || 0) / Math.max(supply, 1)) * 100).toFixed(2), poolPct: +poolPct.toFixed(1),
+      top1: +(reg[0] || 0).toFixed(2), top5: +reg.slice(0, 5).reduce((a, b) => a + b, 0).toFixed(2), top10: +reg.slice(0, 10).reduce((a, b) => a + b, 0).toFixed(2),
+      danger: (d.risks || []).filter(x => x.level === 'danger').map(x => x.name), warn: (d.risks || []).filter(x => x.level === 'warn').map(x => x.name), holders: d.totalHolders ?? null };
+  } catch { return null; }
+}
+function rcFails(a) {
+  if (!a) return 'sin informe de RugCheck';
+  if (a.score > 500) return `RugCheck score ${a.score} > 500`;
+  if (a.danger.length) return `riesgos: ${a.danger.join(', ')}`;
+  if (a.insiders > 16) return `${a.insiders} insiders conectados`;
+  if (a.devPct > 3) return `el dev tiene ${a.devPct} %`;
+  if (a.poolPct < 8 || a.poolPct > 95) return `pool con ${a.poolPct} % del suministro`;
+  if (a.top10 > 60) return `top 10 carteras con ${a.top10} %`;
+  return null;
+}
+async function rcPump() {
+  if (rcBusy) return; rcBusy = true;
+  while (rcQueue.length) {
+    const p = rcQueue.shift(); const P = H[p]; if (!P) continue;
+    const a = await rcAudit(P.mint); P.rc = a || { fail: true }; P.rcAt = Date.now();
+    rec({ rc: p, mint: P.mint, age: P.grad ? +((Date.now() - P.grad) / 60000).toFixed(1) : null, bund: P.bund ?? null, ...(a || { fail: true }) });
+    await sleep(2500);
+  }
+  rcBusy = false;
+}
+function rcSchedule() { // cada minuto: encola las graduaciones que cumplen RC_AT_MIN y aún no tienen informe
+  if (!RC_SHADOW && !RC_FILTER) return;
+  for (const [p, P] of Object.entries(H)) if (P.grad && !P.rcQueued && Date.now() - P.grad >= RC_AT_MIN * 60000 && Date.now() - P.grad < 3 * 3600000) { P.rcQueued = 1; rcQueue.push(p); }
+  rcPump();
+}
+
 // ---------- Bucle de cada minuto ----------
 async function tick() {
   const m = nowMin(); const pools = Object.keys(H);
@@ -236,6 +283,7 @@ async function tick() {
     if (pos.path.length < 400) pos.path.push([Math.round((Date.now() - pos.openedAt) / 1000), +r.toFixed(4)]);
   }
   judgeOperators(m);
+  rcSchedule();
   if (m % 5 !== 0) { save(); return; }
   // decisión cada 5 min
   let best = null, n = 0;
@@ -252,6 +300,8 @@ async function tick() {
     if (e[0] / 1e9 < MIN_LIQ) continue;
     if (BUNDLE_MODE === 'only' && !H[p].bund) continue;
     if (BUNDLE_MODE === 'skip' && (H[p].bund || !H[p].grad)) continue; // normales recién graduadas que hemos visto nacer o graduarse
+    if (BUNDLE_MODE === 'grad' && !H[p].grad) continue; // cualquier graduación vista en vivo
+    if (RC_FILTER) { const why = rcFails(H[p].rc?.fail ? null : H[p].rc); if (why) continue; }
     if (H[p].grad && Date.now() - H[p].grad < MIN_AGE_MIN * 60000) continue; // aún en la zona de peligro
     if (vetoed(H[p].creator)) continue; // creador que ya ha hundido una moneda
     if (!best || pr > best.pr) best = { p, pr };

@@ -178,8 +178,8 @@
     }
   },
   {
-    "name": "smart",
-    "label": "🧠 BOT LISTO v1 · solo agrupadas (sin saldo: 14 hundidas de 29) · ya no compra",
+    "name": "smartclinter",
+    "label": "🧠 BOT LISTO + filtros de CLINTER (RugCheck: score, insiders, dev, top10, pool) · medición",
     "type": "smart",
     "script": "smartbot.mjs",
     "wallet": "PumpSwap · monedas graduadas",
@@ -190,7 +190,28 @@
     "env": {
       "START_SOL": 0.15,
       "SIZE": 0.025,
-      "MAX_OPEN": 6
+      "MAX_OPEN": 6,
+      "BUNDLE_MODE": "grad",
+      "BUY_TH": 0.05,
+      "REC": "0",
+      "RC_FILTER": "1"
+    }
+  },
+  {
+    "name": "smart",
+    "label": "🧠 BOT LISTO v1 · solo agrupadas (sin saldo) · graba datos + RugCheck de cada graduación",
+    "type": "smart",
+    "script": "smartbot.mjs",
+    "wallet": "PumpSwap · monedas graduadas",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.15,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.15,
+      "SIZE": 0.025,
+      "MAX_OPEN": 6,
+      "RC_SHADOW": "1"
     }
   },
   {
