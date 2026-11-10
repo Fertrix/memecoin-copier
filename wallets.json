@@ -159,6 +159,24 @@
     }
   },
   {
+    "name": "rsi",
+    "label": "📈 REBOTE RSI · memecoins grandes (4 h) · medición",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.15,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.15,
+      "SIZE": 0.025,
+      "MAX_OPEN": 6,
+      "RSI_IN": 25,
+      "RSI_OUT": 55
+    }
+  },
+  {
     "name": "smartnorm",
     "label": "🧠 BOT LISTO v2 · solo monedas NORMALES (las agrupadas se hunden el 96 %) · medición",
     "type": "smart",

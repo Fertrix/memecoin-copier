@@ -1,0 +1,77 @@
+[
+ {
+  "name": "$WIF",
+  "pool": "EP2ib6dYdEeqD8MfE2ezHCxX3kP3K2eLKkirfPm5eyMx",
+  "quote": "SOL"
+ },
+ {
+  "name": "Fartcoin",
+  "pool": "Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw",
+  "quote": "SOL"
+ },
+ {
+  "name": "PENGU",
+  "pool": "FAqh648xeeaTqL7du49sztp9nfj5PjRQrfvaMccyd9cz",
+  "quote": "SOL"
+ },
+ {
+  "name": "TRUMP",
+  "pool": "3C5YE97HADPDxZehYq9Cis8AXr9aNyrUsczKzE1nDbW9",
+  "quote": "USDC"
+ },
+ {
+  "name": "MEW",
+  "pool": "879F697iuDJGMevRkRcnW21fcXiAeLJK1ffsw2ATebce",
+  "quote": "SOL"
+ },
+ {
+  "name": "BOME",
+  "pool": "DSUvc5qf5LJHHV5e2tD184ixotSnCnwj7i4jJa4Xsrmt",
+  "quote": "SOL"
+ },
+ {
+  "name": "Pnut",
+  "pool": "4AZRPNEfCJ7iw28rJu5aUyeQhYcvdcNm8cswyL51AY9i",
+  "quote": "SOL"
+ },
+ {
+  "name": "GOAT",
+  "pool": "9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW",
+  "quote": "SOL"
+ },
+ {
+  "name": "MOODENG",
+  "pool": "22WrmyTj8x2TRVQen3fxxi2r4Rn6JDHWoMTpsSmn8RUd",
+  "quote": "SOL"
+ },
+ {
+  "name": "CHILLGUY",
+  "pool": "93tjgwff5Ac5ThyMi8C4WejVVQq4tuMeMuYW1LEYZ7bu",
+  "quote": "SOL"
+ },
+ {
+  "name": "GIGA",
+  "pool": "4xxM4cdb6MEsCxM52xvYqkNbzvdeWWsPDZrBcTqVGUar",
+  "quote": "SOL"
+ },
+ {
+  "name": "SLERF",
+  "pool": "AgFnRLUScRD2E4nWQxW73hdbSN7eKEUb2jHX7tx9YTYc",
+  "quote": "SOL"
+ },
+ {
+  "name": "PONKE",
+  "pool": "5uTwG3y3F5cx4YkodgTjWEHDrX5HDKZ5bZZ72x8eQ6zE",
+  "quote": "SOL"
+ },
+ {
+  "name": "USELESS",
+  "pool": "FXrfXhzjmZzwKkwBU5P4ipfqAWmn79Gzz6eEi4nwFW9j",
+  "quote": "USDC"
+ },
+ {
+  "name": "aura",
+  "pool": "9ViX1VductEoC2wERTSp2TuDxXPwAf69aeET8ENPJpsN",
+  "quote": "SOL"
+ }
+]
