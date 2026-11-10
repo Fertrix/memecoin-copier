@@ -238,6 +238,9 @@ http.createServer((req, res) => {
   if (u.pathname === '/api/rec') { const d = path.join(ROOT, 'data', 'rec'); let files = []; try { files = fs.readdirSync(d).filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).map(f => ({ f, bytes: fs.statSync(path.join(d, f)).size })); } catch {} return json(res, files); }
   const recM = u.pathname.match(/^\/api\/rec\/(\d{4}-\d{2}-\d{2}\.jsonl)$/);
   if (recM) { const f = path.join(ROOT, 'data', 'rec', recM[1]); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store' }); return fs.createReadStream(f).pipe(zlib.createGzip()).pipe(res); }
+  // Datos grabados por el bot listo (reservas de cada pool cada minuto), para reentrenar
+  const srM = u.pathname.match(/^\/api\/smartrec\/(\d{4}-\d{2}-\d{2}\.jsonl)$/);
+  if (srM) { const f = path.join(ROOT, 'data', 'smart_rec', srM[1]); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store' }); return fs.createReadStream(f).pipe(zlib.createGzip()).pipe(res); }
   // Decisiones de dev fuerte (máquina del tiempo exacta), solo lectura y pública
   if (u.pathname === '/api/devlog') { const f = path.join(ROOT, 'data', 'dev_decisions.jsonl'); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store' }); return fs.createReadStream(f).pipe(zlib.createGzip()).pipe(res); }
   // Login
