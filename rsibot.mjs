@@ -37,7 +37,10 @@ async function candles(pool) {
 }
 async function check() {
   let seen = 0;
-  for (const P of POOLS) {
+  // posiciones en monedas que ya no están en la lista (p. ej. estables quitadas): se venden en esta vuelta
+  const listed = new Set(POOLS.map(p => p.pool));
+  const extra = Object.entries(st.open).filter(([pool]) => !listed.has(pool)).map(([pool, o]) => ({ pool, name: o.symbol || pool.slice(0, 6), quote: '', retired: true }));
+  for (const P of [...POOLS, ...extra]) {
     const c = await candles(P.pool); await sleep(2500);
     if (!c || c.length < 60) continue; seen++;
     const now = Date.now() / 1000, cur = c.at(-1).c; // precio actual (vela en curso)
@@ -46,10 +49,10 @@ async function check() {
     const pos = st.open[P.pool];
     if (pos) {
       pos.markSol = pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO; pos.markAt = Date.now(); pos.rsi = r; save();
-      if (r > RSI_OUT && barT > pos.bar) {
+      if ((r > RSI_OUT && barT > pos.bar) || P.retired) {
         const back = Math.max(0, pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO), ret = back / pos.size - 1;
         st.balance += back;
-        st.closed.push({ mint: P.pool, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'rsi', reason: `RSI ${r.toFixed(0)} > ${RSI_OUT}`, route: 'jup', symbol: P.name, name: P.name, rsiIn: pos.rsiIn });
+        st.closed.push({ mint: P.pool, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'rsi', reason: P.retired ? 'moneda quitada de la lista' : `RSI ${r.toFixed(0)} > ${RSI_OUT}`, route: 'jup', symbol: P.name, name: P.name, rsiIn: pos.rsiIn });
         delete st.open[P.pool];
         emit({ type: 'sell', mint: P.pool, ret, size: pos.size, holdS: (Date.now() - pos.openedAt) / 1000, symbol: P.name });
         save();

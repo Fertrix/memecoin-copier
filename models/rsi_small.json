@@ -25,11 +25,6 @@
   "quote": "SOL"
  },
  {
-  "name": "IDLE",
-  "pool": "AEZjoUACNSpmYHHRNbfknjL8oiBDw6GhtrMm7tZgBfca",
-  "quote": "SOL"
- },
- {
   "name": "ALON",
   "pool": "Eb9qkfiSzKd185KdWLkZrMrejKEbA2ah2BK7spNmoPej",
   "quote": "SOL"
@@ -95,29 +90,9 @@
   "quote": "SOL"
  },
  {
-  "name": "tSpaceX",
-  "pool": "8obGpjiUu7QTJHK58YHCoz5HxobmrVP2x5zpMZu3c4BT",
-  "quote": "USDC"
- },
- {
   "name": "ANSEM",
   "pool": "6e7V9eegCHw997T72MxgwwJipZ6GJyZF8NvjkzT1rvpN",
   "quote": "SOL"
- },
- {
-  "name": "wXMR",
-  "pool": "GgoFghiA6Ca7YNmG6dRxwKQWkZhRK8ND47EREz46arot",
-  "quote": "USDC"
- },
- {
-  "name": "tKalshi",
-  "pool": "CGYxcqLiJEoYapZrU7uVGBGfEE15pXDV4mB9AQ8Fsuff",
-  "quote": "USDC"
- },
- {
-  "name": "ORE",
-  "pool": "C7hF6MvQwErhsf1KrFvnKzdArb9PsofFiwZdipo9c7cz",
-  "quote": "USDC"
  },
  {
   "name": "ZCAT",
@@ -135,88 +110,13 @@
   "quote": "SOL"
  },
  {
-  "name": "tOpenAI",
-  "pool": "2ZWxT3niYjyudmDMDVar9ajNE42RkwYdzZBh6TiMuKQY",
-  "quote": "USDC"
- },
- {
-  "name": "TTWO",
-  "pool": "6PTm7MkUmtsLU7w6dWrMHJAt8PnzoCgcZdKyTKEhUAPL",
-  "quote": "USDC"
- },
- {
-  "name": "AAPLx",
-  "pool": "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y",
-  "quote": "USDC"
- },
- {
-  "name": "MSFTx",
-  "pool": "CLu4kFM4nb67xrdN7vJnMxXXir8Z5hA4HJUzPFccXjsL",
-  "quote": "USDC"
- },
- {
-  "name": "MCDx",
-  "pool": "5MGvNj9RNKNmzwp1LtZuQkZonEYtKJ3JuiyNQEUU2DsF",
-  "quote": "USDC"
- },
- {
-  "name": "GEOD(SOL)",
-  "pool": "BkX9RSHoDJGkU7pbHiksv3DprdLM3KWGoDSfGN9cGJ5d",
-  "quote": "USDC"
- },
- {
-  "name": "GLDx",
-  "pool": "78ReVNMLGRWmjtf2HmBoHUe2pRcsctXTTbxJnbhchyze",
-  "quote": "USDC"
- },
- {
-  "name": "EURC",
-  "pool": "ArisQNcbjXPJD7RgPRvysatX3xcfHPTbcTkfD8kDoZ9i",
-  "quote": "USDC"
- },
- {
-  "name": "LIT",
-  "pool": "5H7c1wUYrE3uaEGNfaXLoR4jnUcmyNCRrhfk6oaVxFWt",
-  "quote": "SOL"
- },
- {
-  "name": "BORG",
-  "pool": "KLkoFSdCpC523EmmGyJxmLv1A3itv8ZNiMZwjPmFXuk",
-  "quote": "SOL"
- },
- {
   "name": "Bonk",
   "pool": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
   "quote": "SOL"
  },
  {
-  "name": "GMEx",
-  "pool": "hSQxf9L7Tpwf1PKjWWSbnew2vyTPpGrfWwNa4gq2n2x",
-  "quote": "USDC"
- },
- {
-  "name": "SKR",
-  "pool": "VY1ZQXjqBwvuWgVfTfhqanJe96GGoQrX7xZZDrWPGiT",
-  "quote": "USDC"
- },
- {
-  "name": "ZBCN",
-  "pool": "FaoZEZFsRS2jJAzg5PXwNjDdA1hDAjDGAkDf4xRfY79w",
-  "quote": "SOL"
- },
- {
-  "name": "GP",
-  "pool": "7YGHXMBpNLcDRLPUJfqzN79WMoh8Qniz52cNuZK6go7b",
-  "quote": "USDC"
- },
- {
   "name": "RUSH",
   "pool": "AFdizLL2M716aPcV8gu4azEL3JxFpT7wWFgjVwNU3RNm",
-  "quote": "USDC"
- },
- {
-  "name": "wNEAR",
-  "pool": "gyYigqG8vdEMkDNTTVL6at2msbHdTDWyb6bccyR238U",
   "quote": "USDC"
  },
  {
@@ -265,11 +165,6 @@
   "quote": "SOL"
  },
  {
-  "name": "stSOL",
-  "pool": "6a1CsrpeZubDjEJE9s1CMVheB6HWM5d7m1cj2jkhyXhj",
-  "quote": "USDC"
- },
- {
   "name": "TSUKI",
   "pool": "7yMhxapzceFUo24KNgP77mGj1crdAv8ayYfqGvB5skZf",
   "quote": "SOL"
@@ -295,63 +190,8 @@
   "quote": "SOL"
  },
  {
-  "name": "HYPE",
-  "pool": "6oQ9wVex4mKZti2GsGCfD8FWTMMC9PLQkztRU5cd6MK8",
-  "quote": "SOL"
- },
- {
-  "name": "ZEC",
-  "pool": "BrxKsMhe5cweBWC1RLzWMmH5ufKLCU1FpygTkSiapnHN",
-  "quote": "SOL"
- },
- {
-  "name": "WBTC",
-  "pool": "4kdxjt8pKEW4qV4ji4HANixwswDJw3Egn8L4x2BEWQqT",
-  "quote": "SOL"
- },
- {
-  "name": "MUSK",
-  "pool": "GeUkx21Vc6yg63YZ1BdXY95ZATm9LeBYCgSN1uJ3o18S",
-  "quote": "USDC"
- },
- {
-  "name": "cbBTC",
-  "pool": "HDhWhQCBrSh9xNWmNtsTi86eWj3yCoEiaRodjgNydo1b",
-  "quote": "SOL"
- },
- {
-  "name": "SPCX",
-  "pool": "3h9GhSUzozu2eRQ9MCLCeHWYshywm4mqbzPtz2h1zGMF",
-  "quote": "SOL"
- },
- {
-  "name": "CARDS",
-  "pool": "DLZhgwhLVCQWucBVSmY7QwKgcDCQaVvNwQ3DnAoatYzy",
-  "quote": "SOL"
- },
- {
-  "name": "NVDAx",
-  "pool": "FCn5zw4gAcfRpQgst5ThFuzBGXbbJ6RocVErgC4vJ9j1",
-  "quote": "SOL"
- },
- {
   "name": "BTC",
   "pool": "2tFYCTqYJ2pyrb7CeA824o2Ybq3jq7agvr3Qpv2uVDmL",
-  "quote": "SOL"
- },
- {
-  "name": "DOGE",
-  "pool": "4n9rkpKkPUGFquBh6UXqNYbaCNyBcFq9VwNbutwGX5d6",
-  "quote": "SOL"
- },
- {
-  "name": "JitoSOL",
-  "pool": "BoeMUkCLHchTD31HdXsbDExuZZfcUppSLpYtV3LZTH6U",
-  "quote": "SOL"
- },
- {
-  "name": "USELESS",
-  "pool": "8ztFxjFPfVUtEf4SLSapcFj8GW2dxyUA9no2bLPq7H7V",
   "quote": "SOL"
  },
  {
@@ -365,18 +205,8 @@
   "quote": "SOL"
  },
  {
-  "name": "BP",
-  "pool": "7o3bfXjeDL6Wzuwk1VR8nvEwSJTA2hHJhBgUA95nFDDa",
-  "quote": "SOL"
- },
- {
   "name": "MASK",
   "pool": "D1rDVEp78cvBctREKZmpLdRnPNe3Ufmgq6ZjMYye9kmq",
-  "quote": "SOL"
- },
- {
-  "name": "INF",
-  "pool": "8iibPkw7zbNHMPcihHeBgcL7rDnHteZb2NfvTy8bNm7d",
   "quote": "SOL"
  },
  {

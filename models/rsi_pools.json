@@ -5,11 +5,6 @@
   "quote": "SOL"
  },
  {
-  "name": "Fartcoin",
-  "pool": "Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw",
-  "quote": "SOL"
- },
- {
   "name": "PENGU",
   "pool": "FAqh648xeeaTqL7du49sztp9nfj5PjRQrfvaMccyd9cz",
   "quote": "SOL"
@@ -22,11 +17,6 @@
  {
   "name": "MEW",
   "pool": "879F697iuDJGMevRkRcnW21fcXiAeLJK1ffsw2ATebce",
-  "quote": "SOL"
- },
- {
-  "name": "BOME",
-  "pool": "DSUvc5qf5LJHHV5e2tD184ixotSnCnwj7i4jJa4Xsrmt",
   "quote": "SOL"
  },
  {
@@ -77,6 +67,16 @@
  {
   "name": "jellyjelly",
   "pool": "3bC2e2RxcfvF9oP22LvbaNsVwoS2T98q6ErCRoayQYdq",
+  "quote": "SOL"
+ },
+ {
+  "name": "Fartcoin",
+  "pool": "Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw",
+  "quote": "SOL"
+ },
+ {
+  "name": "BOME",
+  "pool": "DSUvc5qf5LJHHV5e2tD184ixotSnCnwj7i4jJa4Xsrmt",
   "quote": "SOL"
  },
  {

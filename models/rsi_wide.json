@@ -60,11 +60,6 @@
   "quote": "SOL"
  },
  {
-  "name": "ALCH",
-  "pool": "FyDF3vKQFbcvNTsBi7L7LremrFPmXKbQqgAgnPg1hXXd",
-  "quote": "SOL"
- },
- {
   "name": "$WIF",
   "pool": "EP2ib6dYdEeqD8MfE2ezHCxX3kP3K2eLKkirfPm5eyMx",
   "quote": "SOL"
@@ -100,11 +95,6 @@
   "quote": "SOL"
  },
  {
-  "name": "swarms",
-  "pool": "HL4KFTfhZZMm7NGefszQxzJ3M6CaDWE7TesyuRuQYmMJ",
-  "quote": "SOL"
- },
- {
   "name": "Pnut",
   "pool": "4AZRPNEfCJ7iw28rJu5aUyeQhYcvdcNm8cswyL51AY9i",
   "quote": "SOL"
@@ -117,11 +107,6 @@
  {
   "name": "VINE",
   "pool": "58fzJMbX5PatnfJPqWWsqkVFPRKptkbb5r2vCw4Qq3z9",
-  "quote": "SOL"
- },
- {
-  "name": "IDLE",
-  "pool": "AEZjoUACNSpmYHHRNbfknjL8oiBDw6GhtrMm7tZgBfca",
   "quote": "SOL"
  },
  {
@@ -225,11 +210,6 @@
   "quote": "USDC"
  },
  {
-  "name": "wNEAR",
-  "pool": "FhdW3Y6Ea6hXKbkGkt5YSAVtDNd5qJ8USevMaPyEr45S",
-  "quote": "USDC"
- },
- {
   "name": "STONK",
   "pool": "zxTpi4BtaWX3mgdAPoezkMD1hxx8CdeCfrqXMWvSCLX",
   "quote": "SOL"
@@ -240,23 +220,8 @@
   "quote": "USDC"
  },
  {
-  "name": "JupUSD",
-  "pool": "DZ2vZJMLKt1cExzyFeyoGV3panTJufRFMiLXJKSa2mPP",
-  "quote": "USDC"
- },
- {
   "name": "GTA6",
   "pool": "xg71xrhn7MEj5akrZGteuYeiTLbBzyNCpBn69bRYd5a",
-  "quote": "SOL"
- },
- {
-  "name": "tSpaceX",
-  "pool": "8obGpjiUu7QTJHK58YHCoz5HxobmrVP2x5zpMZu3c4BT",
-  "quote": "USDC"
- },
- {
-  "name": "MET",
-  "pool": "AsSyvUnbfaZJPRrNh3kUuvZTeHKoMVWEoHz86f4Q5D9x",
   "quote": "SOL"
  },
  {
@@ -265,29 +230,9 @@
   "quote": "SOL"
  },
  {
-  "name": "wXMR",
-  "pool": "GgoFghiA6Ca7YNmG6dRxwKQWkZhRK8ND47EREz46arot",
-  "quote": "USDC"
- },
- {
   "name": "CTM",
   "pool": "JCLQiP7t1uxHiZHPotpUoVvPFFE48UxpkXHsVJJJvUrJ",
   "quote": "SOL"
- },
- {
-  "name": "DBR",
-  "pool": "E5H5BXLranyJFHEzvR3R2j6kGDQ3Fnx8sPKSsgYqyya8",
-  "quote": "USDC"
- },
- {
-  "name": "tKalshi",
-  "pool": "CGYxcqLiJEoYapZrU7uVGBGfEE15pXDV4mB9AQ8Fsuff",
-  "quote": "USDC"
- },
- {
-  "name": "ORE",
-  "pool": "C7hF6MvQwErhsf1KrFvnKzdArb9PsofFiwZdipo9c7cz",
-  "quote": "USDC"
  },
  {
   "name": "ZCAT",
@@ -305,28 +250,8 @@
   "quote": "SOL"
  },
  {
-  "name": "tOpenAI",
-  "pool": "2ZWxT3niYjyudmDMDVar9ajNE42RkwYdzZBh6TiMuKQY",
-  "quote": "USDC"
- },
- {
   "name": "MELANIA",
   "pool": "9DiruRpjnAnzhn6ts5HGLouHtJrT1JGsPbXNYCrFz2ad",
-  "quote": "USDC"
- },
- {
-  "name": "TTWO",
-  "pool": "6PTm7MkUmtsLU7w6dWrMHJAt8PnzoCgcZdKyTKEhUAPL",
-  "quote": "USDC"
- },
- {
-  "name": "NVDAx",
-  "pool": "49iMatQtoyabsYAQc8GafVq6aeBFVDxSRH44oiatyyw6",
-  "quote": "USDC"
- },
- {
-  "name": "SPCX",
-  "pool": "FjuBy7jjf9DXj9d3R7cHpvcnoFW2iQxf7F7P3vqx4Jza",
   "quote": "USDC"
  },
  {
@@ -335,103 +260,8 @@
   "quote": "USDC"
  },
  {
-  "name": "CRCLx",
-  "pool": "GYqHjuDzTiw7i52Xv1qohDE6eJr6eSZpsrBVikGZyaFV",
-  "quote": "USDC"
- },
- {
-  "name": "TSLAx",
-  "pool": "8aDaBQkTrS6HVMjyc6EZebgdiaXhLYGriDWKWWp1NpFF",
-  "quote": "USDC"
- },
- {
   "name": "BIRB",
   "pool": "GUWFT7bbLphGrcpAPnnEnBbe1uErv9e6LLC2qPx2wZy1",
-  "quote": "USDC"
- },
- {
-  "name": "QQQx",
-  "pool": "GMjGLWzvK75LPetrgAmdeXnvxc4fUuQPwJxeQqTDU1aG",
-  "quote": "USDC"
- },
- {
-  "name": "MSTRx",
-  "pool": "2ngTuP7xA581dqX9uJkGRqxmKuehY3k4SDfPebeoRG2J",
-  "quote": "SOL"
- },
- {
-  "name": "SPCXx",
-  "pool": "AHNN6JmvaGG6XUoSg7sEr38gRYDB2jTbUvqXVuqaRHpq",
-  "quote": "USDC"
- },
- {
-  "name": "AAPLx",
-  "pool": "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y",
-  "quote": "USDC"
- },
- {
-  "name": "MPLX",
-  "pool": "BxRhW4q1wTRwJkJ1C4NR4yJCRL2uusoju4g1bVenspZK",
-  "quote": "SOL"
- },
- {
-  "name": "TRX",
-  "pool": "HpgV2jnzgrGfrZjeZGkHgTnEgRFAhtzCVuk3BRFTFJwk",
-  "quote": "USDC"
- },
- {
-  "name": "COINx",
-  "pool": "w7SGmPeXoMCsjvXqgsAmUn56uypyDsjAtsxeVkaiqxa",
-  "quote": "USDC"
- },
- {
-  "name": "MSFTx",
-  "pool": "CLu4kFM4nb67xrdN7vJnMxXXir8Z5hA4HJUzPFccXjsL",
-  "quote": "USDC"
- },
- {
-  "name": "MCDx",
-  "pool": "5MGvNj9RNKNmzwp1LtZuQkZonEYtKJ3JuiyNQEUU2DsF",
-  "quote": "USDC"
- },
- {
-  "name": "XRP",
-  "pool": "8c5nwvX245wsJRhzvZvqK4vyNeV6Si6QC7cCnM3JcABP",
-  "quote": "USDC"
- },
- {
-  "name": "GEOD(SOL)",
-  "pool": "BkX9RSHoDJGkU7pbHiksv3DprdLM3KWGoDSfGN9cGJ5d",
-  "quote": "USDC"
- },
- {
-  "name": "ATOM",
-  "pool": "9w5dw4aEVe43NV6L7enecVE5Mv19JBjmYJugn1aTwBUm",
-  "quote": "USDC"
- },
- {
-  "name": "BDAG",
-  "pool": "Er3U9EXf8aVzmCccB27gmrkjShBqD4sQzoVcnN4YGfmn",
-  "quote": "USDC"
- },
- {
-  "name": "GLDx",
-  "pool": "78ReVNMLGRWmjtf2HmBoHUe2pRcsctXTTbxJnbhchyze",
-  "quote": "USDC"
- },
- {
-  "name": "US",
-  "pool": "EUHG8ogRQmS5au1dKG5CLVFhTMKKqL9m9BY7VvhRxH55",
-  "quote": "USDC"
- },
- {
-  "name": "GOOGLx",
-  "pool": "B8YAwjGYk6qidWzGBXMAxP7nYfG8g74EZ3Y4gFSsobRw",
-  "quote": "USDC"
- },
- {
-  "name": "SPYx",
-  "pool": "6truu3rZuiB9rKQg4VYC3Dt3QwV7DgwGqXrYUcrvnDDE",
   "quote": "USDC"
  },
  {
@@ -440,128 +270,8 @@
   "quote": "USDC"
  },
  {
-  "name": "AKE",
-  "pool": "6iCH5xTrxxgpARvL8WvTRVBppsw8uDQhdePjwKPMDwC",
-  "quote": "USDC"
- },
- {
-  "name": "MALA",
-  "pool": "CbbcP44zSrivwZQBGz9vraKSYbYxkEctqCoCdEmTKrNj",
-  "quote": "USDC"
- },
- {
-  "name": "RLUSD",
-  "pool": "97AGhnXsQjhmSiacygPsHGtGXV21jNQXKGBpgvbmkRA6",
-  "quote": "USDC"
- },
- {
-  "name": "LINK",
-  "pool": "7Ge3sEv8rBGZ7GcFDDiQy6aRfDnVzBkvPL9sVsq9dYtQ",
-  "quote": "USDC"
- },
- {
-  "name": "AVAX",
-  "pool": "4W7mwWiKYQpc6yB92zrdxmBtx3DqTKZ5hpwUTXEYCuFL",
-  "quote": "USDC"
- },
- {
-  "name": "RARE",
-  "pool": "9x7D9Xs4CDVjgLaTMwAiU9sNPT9CZnREquScBzr77E6j",
-  "quote": "USDC"
- },
- {
-  "name": "ECR",
-  "pool": "BypFtVFa665Z331kJDEBmNZqf9kkd5zH1rdAGXeHKUTN",
-  "quote": "USDC"
- },
- {
-  "name": "MOVR",
-  "pool": "2Vb9CCytb76gdBoqfZBXvLR43hVhbhNEw4SZRFam2b9n",
-  "quote": "USDC"
- },
- {
-  "name": "BROCCOLI",
-  "pool": "6g1QUqYf9qG15C1UPKG8THxpgD9gEVc3TLqEyT4n9g4G",
-  "quote": "USDC"
- },
- {
-  "name": "POND",
-  "pool": "DUBfkqDVhoJdxtS5j5KemgYMRAN2GgpT6hw8v6yBoGgc",
-  "quote": "USDC"
- },
- {
-  "name": "ASE",
-  "pool": "5MDiaTr3xZywofHrBSWvLTtwPTGzB1xiGua9brv4sanz",
-  "quote": "USDC"
- },
- {
-  "name": "TAKE",
-  "pool": "GeDQhRMhVksDBJZgDW8fuCDkFPgDx6BxzukFfp6ribyU",
-  "quote": "USDC"
- },
- {
-  "name": "HEEBOO",
-  "pool": "5xNBWXYR9SoNThk3yGP585rRaGchN2VvuV9sujKcEruX",
-  "quote": "USDC"
- },
- {
-  "name": "SKR",
-  "pool": "HGmjRo175mUhaRCtanC37h1teCccYx2pRvxJFY1cx2vC",
-  "quote": "USDC"
- },
- {
-  "name": "ZEC",
-  "pool": "GTHKH8s82ZR8GTSFZ1dUu6wfdxhy59wpMShxzG5zjiPm",
-  "quote": "USDC"
- },
- {
-  "name": "hyUSD",
-  "pool": "4tJW2axbTxtT6nKbjB5pZwePtW84cB7E1B6tdCCLGfrC",
-  "quote": "USDC"
- },
- {
-  "name": "USDG",
-  "pool": "9RqDTfwCx2SgxsvKpspQHc38HUo3B6hRd3oR9JR966Ps",
-  "quote": "USDC"
- },
- {
-  "name": "HYPE",
-  "pool": "31KrYUDzgEQhEgr1JSNVfHAknWACcF97CtUaU8enKQsy",
-  "quote": "SOL"
- },
- {
-  "name": "EURC",
-  "pool": "ArisQNcbjXPJD7RgPRvysatX3xcfHPTbcTkfD8kDoZ9i",
-  "quote": "USDC"
- },
- {
-  "name": "ONYC",
-  "pool": "7jhhyxPUKpu42hPGSYwgMXbR2dtVJHKhs8DW3sAAgAvX",
-  "quote": "USDC"
- },
- {
-  "name": "CASH",
-  "pool": "3wijQvPKm6jHQrAkfPpok5o8WjCWPm1DGG17NmeW8q1w",
-  "quote": "USDC"
- },
- {
   "name": "PENGU",
   "pool": "FAqh648xeeaTqL7du49sztp9nfj5PjRQrfvaMccyd9cz",
-  "quote": "SOL"
- },
- {
-  "name": "LIT",
-  "pool": "5H7c1wUYrE3uaEGNfaXLoR4jnUcmyNCRrhfk6oaVxFWt",
-  "quote": "SOL"
- },
- {
-  "name": "EUROP",
-  "pool": "FzG7qARL4Xnu7s55Jk7J3XJwP6NDCmttNEq62h4nYmLd",
-  "quote": "USDC"
- },
- {
-  "name": "BORG",
-  "pool": "KLkoFSdCpC523EmmGyJxmLv1A3itv8ZNiMZwjPmFXuk",
   "quote": "SOL"
  },
  {
@@ -570,58 +280,8 @@
   "quote": "SOL"
  },
  {
-  "name": "syrupUSDC",
-  "pool": "6fteKNvMdv7tYmBoJHhj1jx6rHcEwC6RdSEmVpyS613J",
-  "quote": "USDC"
- },
- {
-  "name": "OUSD",
-  "pool": "BqCfmajD8Z67KrVE8i4XN43vyPS9hppFAt5dPZFFaMfu",
-  "quote": "USDC"
- },
- {
-  "name": "GMEx",
-  "pool": "hSQxf9L7Tpwf1PKjWWSbnew2vyTPpGrfWwNa4gq2n2x",
-  "quote": "USDC"
- },
- {
-  "name": "SKR",
-  "pool": "VY1ZQXjqBwvuWgVfTfhqanJe96GGoQrX7xZZDrWPGiT",
-  "quote": "USDC"
- },
- {
-  "name": "PSOL",
-  "pool": "3XLkRVg69AgwKAbnSjJpm3PB4QgVeXFEjiXfw5shWMBT",
-  "quote": "SOL"
- },
- {
-  "name": "apxUSD",
-  "pool": "4iWtYHe5oWbXFk1zxRaKQSFrwmnwQWSfL3w2eQ9HiF2o",
-  "quote": "USDC"
- },
- {
-  "name": "USX",
-  "pool": "2e3WeM4WwdEqwTtRnWN3gJSbhNg1P6Aj2y7kEdfrYbix",
-  "quote": "USDC"
- },
- {
-  "name": "ZBCN",
-  "pool": "FaoZEZFsRS2jJAzg5PXwNjDdA1hDAjDGAkDf4xRfY79w",
-  "quote": "SOL"
- },
- {
-  "name": "GP",
-  "pool": "7YGHXMBpNLcDRLPUJfqzN79WMoh8Qniz52cNuZK6go7b",
-  "quote": "USDC"
- },
- {
   "name": "RUSH",
   "pool": "AFdizLL2M716aPcV8gu4azEL3JxFpT7wWFgjVwNU3RNm",
-  "quote": "USDC"
- },
- {
-  "name": "USDY",
-  "pool": "AGXrswVDRoUf62UX9voTXv6TCGw6fBUEwDpyUd9YdZfD",
   "quote": "USDC"
  }
 ]

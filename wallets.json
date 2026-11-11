@@ -178,7 +178,7 @@
   },
   {
     "name": "rsi1h",
-    "label": "📈 REBOTE RSI 1 h · 126 memecoins de Solana (RSI < 20 → > 60) · medición",
+    "label": "📈 REBOTE RSI 1 h · 57 memecoins de Solana (RSI < 30 → > 65) · medición",
     "type": "rsi",
     "script": "rsibot.mjs",
     "wallet": "Memecoins grandes de Solana",
@@ -190,8 +190,8 @@
       "START_SOL": 0.15,
       "SIZE": 0.025,
       "MAX_OPEN": 6,
-      "RSI_IN": 20,
-      "RSI_OUT": 60,
+      "RSI_IN": 30,
+      "RSI_OUT": 65,
       "TF_H": 1,
       "POOLS": "models/rsi_wide.json",
       "COST": 0.006
