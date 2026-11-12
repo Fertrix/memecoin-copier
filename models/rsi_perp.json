@@ -1,0 +1,117 @@
+[
+ {
+  "name": "PUMP",
+  "pool": "2uF4Xh61rDwxnG9woyxsVQP7zuA6kLFpb3NvnRQeoiSd",
+  "quote": "USDC"
+ },
+ {
+  "name": "ACT",
+  "pool": "B4PHSkL6CeZbxVqm1aUPQuVpc5ERFcaZj7u9dhtphmVX",
+  "quote": "SOL"
+ },
+ {
+  "name": "USELESS",
+  "pool": "Q2sPHPdUWFMg7M7wwrQKLrn619cAucfRsmhVJffodSp",
+  "quote": "SOL"
+ },
+ {
+  "name": "BOME",
+  "pool": "DSUvc5qf5LJHHV5e2tD184ixotSnCnwj7i4jJa4Xsrmt",
+  "quote": "SOL"
+ },
+ {
+  "name": "Fartcoin",
+  "pool": "Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw",
+  "quote": "SOL"
+ },
+ {
+  "name": "ZEREBRO",
+  "pool": "3sjNoCnkkhWPVXYGDtem8rCciHSGc9jSFZuUAzKbvRVp",
+  "quote": "SOL"
+ },
+ {
+  "name": "SPX",
+  "pool": "9t1H1uDJ558iMPNkEPSN1fqkpC4XSPQ6cqSf6uEsTfTR",
+  "quote": "SOL"
+ },
+ {
+  "name": "$WIF",
+  "pool": "EP2ib6dYdEeqD8MfE2ezHCxX3kP3K2eLKkirfPm5eyMx",
+  "quote": "SOL"
+ },
+ {
+  "name": "MEW",
+  "pool": "879F697iuDJGMevRkRcnW21fcXiAeLJK1ffsw2ATebce",
+  "quote": "SOL"
+ },
+ {
+  "name": "GRIFFAIN",
+  "pool": "CpsMssqi3P9VMvNqxrdWVbSBCwyUHbGgNcrw7MorBq3g",
+  "quote": "SOL"
+ },
+ {
+  "name": "pippin",
+  "pool": "8WwcNqdZjCY5Pt7AkhupAFknV2txca9sq6YBkGzLbvdt",
+  "quote": "SOL"
+ },
+ {
+  "name": "Ban",
+  "pool": "DmAsjXoceoL5vTKZbYpTpXPo7MKm16FMfNMm3PJFiUha",
+  "quote": "SOL"
+ },
+ {
+  "name": "POPCAT",
+  "pool": "FRhB8L7Y9Qq41qZXYLtC2nw8An1RJfLLxRF2x9RwLLMo",
+  "quote": "SOL"
+ },
+ {
+  "name": "Pnut",
+  "pool": "4AZRPNEfCJ7iw28rJu5aUyeQhYcvdcNm8cswyL51AY9i",
+  "quote": "SOL"
+ },
+ {
+  "name": "CHILLGUY",
+  "pool": "93tjgwff5Ac5ThyMi8C4WejVVQq4tuMeMuYW1LEYZ7bu",
+  "quote": "SOL"
+ },
+ {
+  "name": "GIGA",
+  "pool": "4xxM4cdb6MEsCxM52xvYqkNbzvdeWWsPDZrBcTqVGUar",
+  "quote": "SOL"
+ },
+ {
+  "name": "MOODENG",
+  "pool": "22WrmyTj8x2TRVQen3fxxi2r4Rn6JDHWoMTpsSmn8RUd",
+  "quote": "SOL"
+ },
+ {
+  "name": "GOAT",
+  "pool": "9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW",
+  "quote": "SOL"
+ },
+ {
+  "name": "PONKE",
+  "pool": "5uTwG3y3F5cx4YkodgTjWEHDrX5HDKZ5bZZ72x8eQ6zE",
+  "quote": "SOL"
+ },
+ {
+  "name": "TRUMP",
+  "pool": "3C5YE97HADPDxZehYq9Cis8AXr9aNyrUsczKzE1nDbW9",
+  "quote": "USDC"
+ },
+ {
+  "name": "MELANIA",
+  "pool": "9DiruRpjnAnzhn6ts5HGLouHtJrT1JGsPbXNYCrFz2ad",
+  "quote": "USDC"
+ },
+ {
+  "name": "PENGU",
+  "pool": "FAqh648xeeaTqL7du49sztp9nfj5PjRQrfvaMccyd9cz",
+  "quote": "SOL"
+ },
+ {
+  "name": "Bonk",
+  "pool": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
+  "quote": "SOL"
+ }
+]

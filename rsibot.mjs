@@ -6,6 +6,17 @@
 import fs from 'node:fs';
 const START_SOL = Number(process.env.START_SOL ?? 0.15), SIZE = Number(process.env.SIZE ?? 0.025), MAX_OPEN = Number(process.env.MAX_OPEN ?? 6);
 const RSI_IN = Number(process.env.RSI_IN ?? 25), RSI_OUT = Number(process.env.RSI_OUT ?? 55), COST = Number(process.env.COST ?? 0.005), PRIO = 0.0002;
+// CORTO (SIDE=short): en futuros perpetuos de memecoins (Drift / Jupiter Perps). Abre cuando el RSI SUPERA RSI_IN y cierra cuando BAJA de RSI_OUT.
+// Gana si el precio baja: valor = margen × (1 + LEV × (1 − precio/entrada)) − comisión 0,1 %/lado sobre el tamaño − financiación 0,01 %/h. Liquidación si sube 1/LEV.
+const SIDE = process.env.SIDE || 'long', LEV = Number(process.env.LEV ?? 1), PFEE = 0.001, FUND = 0.0001;
+const isShort = SIDE === 'short';
+const valueOf = (pos, cur) => {
+  if (!isShort) return Math.max(0, pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO);
+  if (cur >= pos.entry * (1 + 1 / LEV - 0.01)) return 0; // liquidado
+  const h = (Date.now() - pos.openedAt) / 3600000;
+  return Math.max(0, pos.size * (1 + LEV * (1 - cur / pos.entry) - 2 * PFEE * LEV - FUND * LEV * h) - PRIO);
+};
+const enterNow = r => (isShort ? r > RSI_IN : r < RSI_IN), exitNow = r => (isShort ? r < RSI_OUT : r > RSI_OUT);
 const TF_H = Number(process.env.TF_H ?? 4);
 const STATE = process.env.STATE || 'data/livecopy_rsi.json';
 const POOLS = JSON.parse(fs.readFileSync(process.env.POOLS || 'models/rsi_pools.json', 'utf8'));
@@ -48,30 +59,32 @@ async function check() {
     const R = rsi(closed.map(x => x.c)), r = R.at(-1), barT = closed.at(-1).t;
     const pos = st.open[P.pool];
     if (pos) {
-      pos.markSol = pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO; pos.markAt = Date.now(); pos.rsi = r; save();
-      if ((r > RSI_OUT && barT > pos.bar) || P.retired) {
-        const back = Math.max(0, pos.size * (cur / pos.entry) * (1 - COST) ** 2 - PRIO), ret = back / pos.size - 1;
+      pos.markSol = valueOf(pos, cur); pos.markAt = Date.now(); pos.rsi = r; save();
+      const liq = isShort && pos.markSol <= 0;
+      if ((exitNow(r) && barT > pos.bar) || P.retired || liq) {
+        const back = valueOf(pos, cur), ret = back / pos.size - 1;
         st.balance += back;
-        st.closed.push({ mint: P.pool, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'rsi', reason: P.retired ? 'moneda quitada de la lista' : `RSI ${r.toFixed(0)} > ${RSI_OUT}`, route: 'jup', symbol: P.name, name: P.name, rsiIn: pos.rsiIn });
+        st.closed.push({ mint: P.pool, ret, size: pos.size, out: back, holdS: (Date.now() - pos.openedAt) / 1000, at: Date.now(), whaleSol: null, kind: 'rsi', reason: P.retired ? 'moneda quitada de la lista' : liq ? 'LIQUIDADO' : `RSI ${r.toFixed(0)} ${isShort ? '<' : '>'} ${RSI_OUT}`, route: 'jup', symbol: P.name, name: P.name, rsiIn: pos.rsiIn });
         delete st.open[P.pool];
         emit({ type: 'sell', mint: P.pool, ret, size: pos.size, holdS: (Date.now() - pos.openedAt) / 1000, symbol: P.name });
         save();
         log(`VENTA ${P.name} ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)} % (RSI ${r.toFixed(0)}) en ${((Date.now() - pos.openedAt) / 3600000).toFixed(1)} h | saldo ${st.balance.toFixed(4)} SOL | ${st.closed.length} cerradas, ${st.closed.filter(x => x.ret > 0).length} ganadoras`);
       }
-    } else if (r < RSI_IN && st.lastBar?.[P.pool] !== barT && Object.keys(st.open).length < MAX_OPEN) {
-      const size = Math.min(SIZE, st.balance - 0.003); if (size < 0.005) { log('sin saldo libre'); continue; }
+    } else if (enterNow(r) && st.lastBar?.[P.pool] !== barT && Object.keys(st.open).length < MAX_OPEN) {
+      const eq = st.balance + Object.values(st.open).reduce((a, o) => a + (o.markSol ?? o.size), 0);
+      const size = Math.min(process.env.SIZE_FRAC ? eq * Number(process.env.SIZE_FRAC) : SIZE, st.balance - 0.003); if (size < 0.005) { log('sin saldo libre'); continue; }
       st.balance -= size; (st.lastBar ||= {})[P.pool] = barT;
       st.open[P.pool] = { size, entry: cur, openedAt: Date.now(), bar: barT, rsiIn: r, symbol: P.name, name: P.name };
       emit({ type: 'buy', mint: P.pool, symbol: P.name, name: P.name, whaleSol: null, kind: 'rsi', route: 'jup', lagMs: 0 });
       save();
-      log(`COMPRA ${P.name} | RSI ${r.toFixed(1)} < ${RSI_IN} | precio ${cur.toPrecision(4)} ${P.quote} | ${size.toFixed(4)} SOL`);
+      log(`${isShort ? `CORTO x${LEV}` : 'COMPRA'} ${P.name} | RSI ${r.toFixed(1)} ${isShort ? '>' : '<'} ${RSI_IN} | precio ${cur.toPrecision(4)} ${P.quote} | ${size.toFixed(4)} SOL`);
     }
   }
   st.stats.checks++; st.stats.lastCheck = { at: Date.now(), pools: seen };
   if (st.stats.checks % 4 === 1) log(`revisadas ${seen}/${POOLS.length} monedas | abiertas ${Object.keys(st.open).length} | saldo ${st.balance.toFixed(4)} SOL`);
   save();
 }
-log(`Bot REBOTE RSI PAPER | ${POOLS.length} memecoins grandes | velas de ${TF_H} h | compra RSI < ${RSI_IN}, vende RSI > ${RSI_OUT} | ${SIZE} SOL por compra | saldo ${st.balance.toFixed(4)} SOL`);
+log(`Bot RSI PAPER ${isShort ? `CORTOS x${LEV}` : 'REBOTE'} | ${POOLS.length} memecoins | velas de ${TF_H} h | ${isShort ? `abre RSI > ${RSI_IN}, cierra RSI < ${RSI_OUT}` : `compra RSI < ${RSI_IN}, vende RSI > ${RSI_OUT}`} | ${SIZE} SOL por compra | saldo ${st.balance.toFixed(4)} SOL`);
 // Una vuelta por hora, 2 min después de cerrar la vela de 1 h (con velas de 1-4 h no hace falta más, y así no chocamos con el límite de GeckoTerminal)
 (async function loop() {
   for (;;) {

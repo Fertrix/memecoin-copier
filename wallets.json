@@ -19,7 +19,8 @@
       "HOLD_S": 100,
       "DECISION_LOG": "1",
       "DEV_RPC": ""
-    }
+    },
+    "off": true
   },
   {
     "name": "dev12",
@@ -40,7 +41,8 @@
       "SL": 0.25,
       "HOLD_S": 100,
       "DEV_RPC": ""
-    }
+    },
+    "off": true
   },
   {
     "name": "devrun",
@@ -52,7 +54,7 @@
     "fraction": 0.25,
     "startSol": 0.09,
     "expected": 0.08,
-    "cartera": true,
+    "cartera": false,
     "env": {
       "DEV_PCT": 8,
       "DECIDE_S": 30,
@@ -63,7 +65,8 @@
       "TRAIL": 0.3,
       "TRAIL_ARM": 0.5,
       "DEV_RPC": ""
-    }
+    },
+    "off": true
   },
   {
     "name": "devrunts",
@@ -88,7 +91,8 @@
       "DEV_RPC": "",
       "TSTOP_MIN": 2,
       "TSTOP_UP": 0.05
-    }
+    },
+    "off": true
   },
   {
     "name": "devrunflux",
@@ -110,7 +114,8 @@
       "HOLD_S": 1200,
       "TRAIL": 0.3,
       "TRAIL_ARM": 0.5
-    }
+    },
+    "off": true
   },
   {
     "name": "devrun60",
@@ -133,7 +138,8 @@
       "TRAIL": 0.3,
       "TRAIL_ARM": 0.5,
       "DEV_RPC": ""
-    }
+    },
+    "off": true
   },
   {
     "name": "dev12run",
@@ -156,7 +162,8 @@
       "TRAIL": 0.3,
       "TRAIL_ARM": 0.5,
       "DEV_RPC": ""
-    }
+    },
+    "off": true
   },
   {
     "name": "rsi",
@@ -219,6 +226,70 @@
     }
   },
   {
+    "name": "rsi09",
+    "label": "📈 REBOTE RSI 1 h · 57 memecoins, 3 compras (RSI < 30 → > 65) · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": true,
+    "env": {
+      "START_SOL": 0.09,
+      "SIZE_FRAC": 0.33,
+      "MAX_OPEN": 3,
+      "RSI_IN": 30,
+      "RSI_OUT": 65,
+      "TF_H": 1,
+      "COST": 0.006,
+      "POOLS": "models/rsi_wide.json"
+    }
+  },
+  {
+    "name": "rsicorto",
+    "label": "📉 CORTOS x2 · memecoins con perpetuo (RSI > 80 → < 40) · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "SIZE_FRAC": 0.33,
+      "MAX_OPEN": 3,
+      "RSI_IN": 80,
+      "RSI_OUT": 40,
+      "TF_H": 1,
+      "SIDE": "short",
+      "LEV": 2,
+      "POOLS": "models/rsi_perp.json"
+    }
+  },
+  {
+    "name": "rsiagr",
+    "label": "🔥 RSI AGRESIVO · memecoins pequeñas, 2 compras grandes (RSI < 25 → > 65) · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "SIZE_FRAC": 0.5,
+      "MAX_OPEN": 2,
+      "RSI_IN": 25,
+      "RSI_OUT": 65,
+      "TF_H": 1,
+      "COST": 0.008,
+      "POOLS": "models/rsi_small.json"
+    }
+  },
+  {
     "name": "smartnorm",
     "label": "🧠 BOT LISTO v2 · solo monedas NORMALES (las agrupadas se hunden el 96 %) · medición",
     "type": "smart",
@@ -235,7 +306,8 @@
       "BUNDLE_MODE": "skip",
       "BUY_TH": 0.05,
       "REC": "0"
-    }
+    },
+    "off": true
   },
   {
     "name": "smartclinter",
@@ -255,7 +327,8 @@
       "BUY_TH": 0.05,
       "REC": "0",
       "RC_FILTER": "1"
-    }
+    },
+    "off": true
   },
   {
     "name": "smart",
@@ -272,7 +345,8 @@
       "SIZE": 0.025,
       "MAX_OPEN": 6,
       "RC_SHADOW": "1"
-    }
+    },
+    "off": true
   },
   {
     "name": "grad",
@@ -289,7 +363,8 @@
     "expected": 0.06,
     "cartera": false,
     "minPremium": -0.35,
-    "slNet": 0.15
+    "slNet": 0.15,
+    "off": true
   },
   {
     "name": "rec",
