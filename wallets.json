@@ -290,6 +290,134 @@
     }
   },
   {
+    "name": "rsi4h09",
+    "label": "📈 REBOTE RSI 4 h · memecoins grandes, 2 compras (RSI < 25 → > 55) · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "TF_H": 4,
+      "SIZE_FRAC": 0.5,
+      "MAX_OPEN": 2,
+      "RSI_IN": 25,
+      "RSI_OUT": 55,
+      "COST": 0.005,
+      "POOLS": "models/rsi_pools.json"
+    }
+  },
+  {
+    "name": "rsicorto3",
+    "label": "📉 CORTOS x3 · RSI > 80 → < 40, 5 posiciones · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "TF_H": 1,
+      "SIZE_FRAC": 0.2,
+      "MAX_OPEN": 5,
+      "RSI_IN": 80,
+      "RSI_OUT": 40,
+      "SIDE": "short",
+      "LEV": 3,
+      "POOLS": "models/rsi_perp.json"
+    }
+  },
+  {
+    "name": "rsicorto75",
+    "label": "📉 CORTOS x2 · RSI > 75 → < 50, 3 posiciones · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "TF_H": 1,
+      "SIZE_FRAC": 0.33,
+      "MAX_OPEN": 3,
+      "RSI_IN": 75,
+      "RSI_OUT": 50,
+      "SIDE": "short",
+      "LEV": 2,
+      "POOLS": "models/rsi_perp.json"
+    }
+  },
+  {
+    "name": "rsi25x2",
+    "label": "📈 REBOTE RSI · 57 memecoins, 2 compras (RSI < 25 → > 65) · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "TF_H": 1,
+      "SIZE_FRAC": 0.5,
+      "MAX_OPEN": 2,
+      "RSI_IN": 25,
+      "RSI_OUT": 65,
+      "COST": 0.006,
+      "POOLS": "models/rsi_wide.json"
+    }
+  },
+  {
+    "name": "rsiagr3",
+    "label": "🔥 RSI AGRESIVO · pequeñas, 3 compras (RSI < 25 → > 65) · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "TF_H": 1,
+      "SIZE_FRAC": 0.33,
+      "MAX_OPEN": 3,
+      "RSI_IN": 25,
+      "RSI_OUT": 65,
+      "COST": 0.008,
+      "POOLS": "models/rsi_small.json"
+    }
+  },
+  {
+    "name": "rsiagr1",
+    "label": "🔥 RSI AGRESIVO · pequeñas, TODO en 1 compra (RSI < 25 → > 65) · 0,09 SOL",
+    "type": "rsi",
+    "script": "rsibot.mjs",
+    "wallet": "Memecoins grandes de Solana",
+    "ruleMin": 0,
+    "ruleMax": 1000000000,
+    "startSol": 0.09,
+    "cartera": false,
+    "env": {
+      "START_SOL": 0.09,
+      "TF_H": 1,
+      "SIZE_FRAC": 0.98,
+      "MAX_OPEN": 1,
+      "RSI_IN": 25,
+      "RSI_OUT": 65,
+      "COST": 0.008,
+      "POOLS": "models/rsi_small.json"
+    }
+  },
+  {
     "name": "smartnorm",
     "label": "🧠 BOT LISTO v2 · solo monedas NORMALES (las agrupadas se hunden el 96 %) · medición",
     "type": "smart",
