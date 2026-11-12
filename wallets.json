@@ -227,7 +227,7 @@
   },
   {
     "name": "rsi09",
-    "label": "📈 REBOTE RSI 1 h · 57 memecoins, 3 compras (RSI < 30 → > 65) · 0,09 SOL",
+    "label": "📈 REBOTE RSI 1 h · 57 memecoins (RSI < 25 → > 65) · 0,09 SOL",
     "type": "rsi",
     "script": "rsibot.mjs",
     "wallet": "Memecoins grandes de Solana",
@@ -239,7 +239,7 @@
       "START_SOL": 0.09,
       "SIZE_FRAC": 0.33,
       "MAX_OPEN": 3,
-      "RSI_IN": 30,
+      "RSI_IN": 25,
       "RSI_OUT": 65,
       "TF_H": 1,
       "COST": 0.006,
@@ -255,7 +255,7 @@
     "ruleMin": 0,
     "ruleMax": 1000000000,
     "startSol": 0.09,
-    "cartera": false,
+    "cartera": true,
     "env": {
       "START_SOL": 0.09,
       "SIZE_FRAC": 0.33,
@@ -277,7 +277,7 @@
     "ruleMin": 0,
     "ruleMax": 1000000000,
     "startSol": 0.09,
-    "cartera": false,
+    "cartera": true,
     "env": {
       "START_SOL": 0.09,
       "SIZE_FRAC": 0.5,
